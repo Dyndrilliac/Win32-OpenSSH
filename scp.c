@@ -76,7 +76,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h>
+#include <sys/stat.h>
 #endif
 #ifdef HAVE_POLL_H
 #include <poll.h>
@@ -1033,11 +1033,7 @@ int pflag, iamremote, iamrecursive, targetshouldbedirectory;
 char cmd[CMDNEEDS];		/* must hold "rcp -r -p -d\0" */
 
 int response(void);
-#ifdef WIN32_FIXME
-void rsource(char *, struct _stati64 *);
-#else
 void rsource(char *, struct stat *);
-#endif
 
 void sink(int, char *[]);
 void source(int, char *[]);
@@ -1439,7 +1435,7 @@ tolocal(int argc, char **argv)
 void
 source(int argc, char *argv[])
 {
-	struct _stati64 stb;
+	struct stat stb;
 	static BUF buffer;
 	BUF *bp;
 	off_t i;
@@ -1520,7 +1516,7 @@ source(int argc, char *argv[])
 
 		if (_sopen_s(&fd, name, O_RDONLY | O_BINARY, _SH_DENYNO, 0) != 0) {
 			// in NT, we have to check if it is a directory
-			if (_stati64(name, &stb) >= 0) {
+			if (stat(name, &stb) >= 0) {
 				goto switchpoint;
 			}
 			else
@@ -1692,7 +1688,7 @@ next:			if (fd != -1) (void)_close(fd);
 			free(filenames[ii]);
 }
 
-void rsource(char *name, struct _stati64 *statp)
+void rsource(char *name, struct stat *statp)
 {
 	SCPDIR *dirp;
 	struct scp_dirent *dp;
@@ -1754,7 +1750,7 @@ void sink(int argc, char *argv[])
 {
 //	DWORD dwread;
 	static BUF buffer;
-	struct _stati64 stb;
+	struct stat stb;
 	enum { YES, NO, DISPLAYED } wrerr;
 	BUF *bp;
 	size_t i, j, size;
@@ -1812,7 +1808,7 @@ void sink(int argc, char *argv[])
         
 	(void)_write(remout, "", 1);
 
-	if (_stati64(targ, &stb) == 0 && S_ISDIR(stb.st_mode))
+	if (stat(targ, &stb) == 0 && S_ISDIR(stb.st_mode))
 		targisdir = 1;
 
 	for (first = 1;; first = 0) {
@@ -1912,7 +1908,7 @@ keepgoing:
 			np = namebuf;
 		} else
 			np = targ;
-		exists = _stati64(np, &stb) == 0;
+		exists = stat(np, &stb) == 0;
 		if (buf[0] == 'D') {
 			int mod_flag = pflag;
 			if (exists) {
@@ -2807,9 +2803,9 @@ char *win32colon(char *cp)
 
 void verifydir(char *cp)
 {
-	struct _stati64 stb;
+	struct stat stb;
 
-	if (!_stati64(cp, &stb)) {
+	if (!stat(cp, &stb)) {
 		if (S_ISDIR(stb.st_mode))
 			return;
 		errno = ENOTDIR;

@@ -110,6 +110,8 @@
 #include "ssherr.h"
 #include "myproposal.h"
 
+extern HANDLE hInputConsole;
+
 #ifdef ENABLE_PKCS11
 #include "ssh-pkcs11.h"
 #endif
@@ -1462,8 +1464,9 @@ main(int ac, char **av)
 	if (tty_flag) {
 		//AllocConsole();
 	    ConInputInitParams(); // init the Console input side with global parameters
-		HANDLE hInput = GetStdHandle(STD_INPUT_HANDLE);
-	    ConInit( STD_OUTPUT_HANDLE, TRUE ); //init the output console surface for us to write
+        hInputConsole = GetStdHandle(STD_INPUT_HANDLE);
+	    ConInit(STD_OUTPUT_HANDLE, TRUE); //init the output console surface for us to write
+        ConClearScreen();
 	}
 	else {
 		//extern int glob_itissshclient;
@@ -1484,7 +1487,7 @@ main(int ac, char **av)
 #ifdef WIN32_FIXME
   
 	if (tty_flag)
-		ConUnInitWithRestore(); // restore terminal to previous settings if it was a tty session
+		ConUnInit(); // restore terminal to previous settings if it was a tty session
 #endif
 
 	/* Kill ProxyCommand if it is running. */
@@ -1772,6 +1775,10 @@ ssh_session(void)
 		cp = getenv("TERM");
 		if (!cp)
 			cp = "";
+
+        if (cp != NULL && _stricmp(cp, "passthru") == 0)
+            cp = "ansi";
+
 		packet_put_cstring(cp);
 
 		/* Store window size in the packet. */
@@ -1945,7 +1952,12 @@ ssh_session2_setup(int id, int success, void *arg)
 	packet_set_interactive(interactive,
 	    options.ip_qos_interactive, options.ip_qos_bulk);
 
-	client_session2_setup(id, tty_flag, subsystem_flag, getenv("TERM"),
+    char *term = getenv("TERM");
+
+    if (term != NULL && _stricmp(term, "passthru") == 0)
+        term = "ansi";
+
+	client_session2_setup(id, tty_flag, subsystem_flag, term,
 	    NULL, fileno(stdin), &command, environ);
 }
 

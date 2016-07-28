@@ -257,7 +257,7 @@ userauth_pubkey(Authctxt *authctxt)
 
 			if (token) {
 				authenticated = 1;
-				authctxt->methoddata = token;
+				authctxt->methoddata = (void *)token;
 			}
 				
 		}

@@ -92,13 +92,13 @@ int setegid(gid_t gid)
 
 static struct passwd pw;
 
-static char pw_gecos[UNLEN + 1]    = {'\0'};
-static char pw_username[UNLEN + 1] = {'\0'};
-static char pw_passwd[UNLEN + 1]   = {'\0'};
-static wchar_t pw_homedir[MAX_PATH]   = {L'\0'};
-static char pw_homedir_ascii[MAX_PATH]   = {'\0'};
-static char pw_password[MAX_PATH]  = {'\0'};
-static char pw_shellpath[MAX_PATH] = {'\0'};
+static char pw_gecos[UNLEN + 1]         = {'\0'};
+static char pw_username[UNLEN + 1]      = {'\0'};
+static char pw_passwd[UNLEN + 1]        = {'\0'};
+static char pw_homedir[MAX_PATH]        = {'\0'};
+static char pw_homedir_ascii[MAX_PATH]  = {'\0'};
+static char pw_password[MAX_PATH]       = {'\0'};
+static char pw_shellpath[MAX_PATH]      = {'\0'};
 
 /* given a access token, find the domain name of user account of the access token */
 int GetDomainFromToken ( HANDLE *hAccessToken, UCHAR *domain, DWORD dwSize)
@@ -137,7 +137,7 @@ char *GetHomeDirFromToken(char *userName, HANDLE token)
 	HKEY reg_key = 0;
 
 	/* set home dir to Windows if any of below fair*/
-	GetWindowsDirectoryW(pw_homedir, MAX_PATH);
+	GetWindowsDirectoryA(pw_homedir, MAX_PATH);
 
 	tmp_len = MAX_PATH;
 	if (GetTokenInformation(token, TokenUser, InfoBuffer,
@@ -145,7 +145,7 @@ char *GetHomeDirFromToken(char *userName, HANDLE token)
 	    ConvertSidToStringSidW(pTokenUser->User.Sid, &sid_str) == FALSE ||
 	    swprintf(reg_path, MAX_PATH, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ProfileList\\%ls", sid_str) == MAX_PATH ||
 	    RegOpenKeyExW(HKEY_LOCAL_MACHINE, reg_path, 0, STANDARD_RIGHTS_READ | KEY_QUERY_VALUE | KEY_WOW64_64KEY, &reg_key) != 0 ||
-	    RegQueryValueExW(reg_key, L"ProfileImagePath", 0, NULL, pw_homedir, &tmp_len) != 0 ){
+	    RegQueryValueExW(reg_key, L"ProfileImagePath", 0, NULL, (LPBYTE)pw_homedir, &tmp_len) != 0 ){
 		/* one of the above failed */
 		debug("cannot retirve profile path - perhaps user profile is not created yet");
 	}

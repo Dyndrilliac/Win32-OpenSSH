@@ -1050,16 +1050,14 @@ struct escape_help_text {
 };
 static struct escape_help_text esc_txt[] = {
     {".",  "terminate session", SUPPRESS_MUXMASTER},
-    {".",  "terminate connection (and any multiplexed sessions)",
-	SUPPRESS_MUXCLIENT},
+    {".",  "terminate connection (and any multiplexed sessions)", SUPPRESS_MUXCLIENT},
     {"B",  "send a BREAK to the remote system", SUPPRESS_PROTO1},
     {"C",  "open a command line", SUPPRESS_MUXCLIENT},
     {"R",  "request rekey", SUPPRESS_PROTO1},
     {"V/v",  "decrease/increase verbosity (LogLevel)", SUPPRESS_MUXCLIENT},
     {"^Z", "suspend ssh", SUPPRESS_MUXCLIENT},
     {"#",  "list forwarded connections", SUPPRESS_NEVER},
-    {"&",  "background ssh (when waiting for connections to terminate)",
-	SUPPRESS_MUXCLIENT},
+    {"&",  "background ssh (when waiting for connections to terminate)", SUPPRESS_MUXCLIENT},
     {"?", "this message", SUPPRESS_NEVER},
 };
 
@@ -1507,11 +1505,18 @@ client_simple_escape_filter(Channel *c, char *buf, int len)
 
 #ifdef WIN32_FIXME
 u_char * client_ansi_parser_filter(Channel *c, u_char **buf, u_int *len) {
-	/* TODO - account fo error/extended stream*/
+	/* TODO - account for error/extended stream */
+    char *respbuf = NULL;
+    size_t resplen = 0;
+
 	if (c->client_tty) {
-		telProcessNetwork(buffer_ptr(&c->output), buffer_len(&c->output));
-		buffer_clear(&c->output);
-		buffer_append(&c->output, " \b", 2);
+		if(telProcessNetwork(buffer_ptr(&c->output), buffer_len(&c->output), &respbuf, &resplen) == 0)
+		    buffer_clear(&c->output);
+
+        if (respbuf != NULL) {
+            sshbuf_put(&c->input, respbuf, resplen);
+            buffer_clear(&c->output);
+        }
 		*buf = buffer_ptr(&c->output);
 		*len = buffer_len(&c->output);
 		return *buf;
@@ -2603,7 +2608,7 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 		tty_make_modes(-1, tiop);
 		
 #else
-		packet_put_cstring(term != NULL ? term : "vt220");
+		packet_put_cstring(term != NULL ? term : "ansi");
 		packet_put_int((u_int) ScreenX);
 		packet_put_int((u_int) ScrollBottom);
 		packet_put_int((u_int) 640);

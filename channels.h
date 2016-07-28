@@ -266,7 +266,7 @@ struct ForwardOptions;
 void	 channel_set_af(int af);
 void     channel_permit_all_opens(void);
 void	 channel_add_permitted_opens(char *, int);
-int	 channel_add_adm_permitted_opens(char *, int);
+int	     channel_add_adm_permitted_opens(char *, int);
 void	 channel_disable_adm_local_opens(void);
 void	 channel_update_permitted_opens(int, int);
 void	 channel_clear_permitted_opens(void);

@@ -31,6 +31,7 @@
 */
 #include "inc\w32posix.h"
 #include "w32fd.h"
+#include "signal_internal.h"
 #include <stdarg.h>
 #include <errno.h>
 #include <time.h>
@@ -567,10 +568,12 @@ w32_select(int fds, w32_fd_set* readfds, w32_fd_set* writefds, w32_fd_set* excep
 	 * start async io on selected fds if needed and pick up any events
 	 * that select needs to listen on
 	 */
+
 	for (int i = 0; i < fds; i++) {
 
 		if (readfds && FD_ISSET(i, readfds)) {
 			w32_io_on_select(fd_table.w32_ios[i], TRUE);
+
 			if ((fd_table.w32_ios[i]->type == SOCK_FD)
 				&& (fd_table.w32_ios[i]->internal.state == SOCK_LISTENING)) {
 				if (num_events == SELECT_EVENT_LIMIT) {
@@ -635,7 +638,7 @@ w32_select(int fds, w32_fd_set* readfds, w32_fd_set* writefds, w32_fd_set* excep
 				time_rem = timeout_ms - (ticks_spent & 0xffffffff);
 			}
 			else
-				time_rem = INFINITE;
+				time_rem = 0;
 
 			if (0 != wait_for_any_event(events, num_events, time_rem))
 				return -1;

@@ -337,10 +337,15 @@ int sys_auth_passwd(Authctxt *authctxt, const char *password)
   }
   
   worked = LogonUserW(user_UTF16, domain_UTF16, password_UTF16,
-	  LOGON32_LOGON_NETWORK,
-                             LOGON32_PROVIDER_DEFAULT, &hToken);
+    LOGON32_LOGON_INTERACTIVE,
+    LOGON32_PROVIDER_DEFAULT, &hToken);
                              
-  
+  if (!worked) {
+      worked = LogonUserW(user_UTF16, domain_UTF16, password_UTF16,
+          LOGON32_LOGON_NETWORK,
+          LOGON32_PROVIDER_DEFAULT, &hToken);
+  }
+
   free(user_UTF16);
   free(password_UTF16);
   if (domainslash) free(domain_UTF16);

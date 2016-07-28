@@ -1764,42 +1764,46 @@ channel_handle_wfd(Channel *c, fd_set *readset, fd_set *writeset)
 			dlen = MIN(dlen, 8*1024);
 #endif
 
-		len = write(c->wfd, buf, dlen);
-		if (len < 0 &&
-		    (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
-			return 1;
-		if (len <= 0) {
-			if (c->type != SSH_CHANNEL_OPEN) {
-				debug2("channel %d: not open", c->self);
-				chan_mark_dead(c);
-				return -1;
-			} else if (compat13) {
-				buffer_clear(&c->output);
-				debug2("channel %d: input draining.", c->self);
-				c->type = SSH_CHANNEL_INPUT_DRAINING;
-			} else {
-				chan_write_failed(c);
-			}
-			return -1;
-		}
+        if (dlen > 0) {
+            len = write(c->wfd, buf, dlen);
+            if (len < 0 &&
+                (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
+                return 1;
+            if (len <= 0) {
+                if (c->type != SSH_CHANNEL_OPEN) {
+                    debug2("channel %d: not open", c->self);
+                    chan_mark_dead(c);
+                    return -1;
+                }
+                else if (compat13) {
+                    buffer_clear(&c->output);
+                    debug2("channel %d: input draining.", c->self);
+                    c->type = SSH_CHANNEL_INPUT_DRAINING;
+                }
+                else {
+                    chan_write_failed(c);
+                }
+                return -1;
+            }
 #ifndef WIN32_FIXME//R
 #ifndef BROKEN_TCGETATTR_ICANON
-		if (compat20 && c->isatty && dlen >= 1 && buf[0] != '\r') {
-			if (tcgetattr(c->wfd, &tio) == 0 &&
-			    !(tio.c_lflag & ECHO) && (tio.c_lflag & ICANON)) {
-				/*
-				 * Simulate echo to reduce the impact of
-				 * traffic analysis. We need to match the
-				 * size of a SSH2_MSG_CHANNEL_DATA message
-				 * (4 byte channel id + buf)
-				 */
-				packet_send_ignore(4 + len);
-				packet_send();
-			}
-		}
+		    if (compat20 && c->isatty && dlen >= 1 && buf[0] != '\r') {
+			    if (tcgetattr(c->wfd, &tio) == 0 &&
+			        !(tio.c_lflag & ECHO) && (tio.c_lflag & ICANON)) {
+				    /*
+				     * Simulate echo to reduce the impact of
+				     * traffic analysis. We need to match the
+				     * size of a SSH2_MSG_CHANNEL_DATA message
+				     * (4 byte channel id + buf)
+				     */
+				    packet_send_ignore(4 + len);
+				    packet_send();
+			    }
+		    }
 #endif
 #endif
-		buffer_consume(&c->output, len);
+		    buffer_consume(&c->output, len);
+        }
 	}
  out:
 	if (compat20 && olen > 0)
@@ -2442,6 +2446,8 @@ channel_input_extended_data(int type, u_int32_t seq, void *ctxt)
 	char *data;
 	u_int data_len, tcode;
 	Channel *c;
+    char *respbuf = NULL;
+    size_t resplen = 0;
 
 	/* Get the channel number and verify it. */
 	id = packet_get_int();
@@ -2481,8 +2487,13 @@ channel_input_extended_data(int type, u_int32_t seq, void *ctxt)
 	buffer_append(&c->extended, data, data_len);
 	#else
 	if ( c->client_tty )
-		telProcessNetwork ( data, data_len ); // run it by ANSI engine if it is the ssh client
-	else
+		if(telProcessNetwork(data, data_len, &respbuf, &resplen) > 0) // run it by ANSI engine if it is the ssh client
+            buffer_append(&c->extended, data, data_len);
+
+        if (respbuf != NULL) {
+            sshbuf_put(&c->input, respbuf, resplen);
+        }
+    else
 		buffer_append(&c->extended, data, data_len);
 	#endif
 	free(data);

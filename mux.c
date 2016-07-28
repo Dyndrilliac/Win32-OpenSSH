@@ -1846,6 +1846,8 @@ mux_client_request_session(int fd)
 	}
 
 	term = getenv("TERM");
+    if (term != NULL && _stricmp(term, "passthru") == 0)
+        term = "ansi";
 
 	buffer_init(&m);
 	buffer_put_int(&m, MUX_C_NEW_SESSION);

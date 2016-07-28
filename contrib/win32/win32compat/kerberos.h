@@ -95,9 +95,9 @@ typedef krb5_error_code KRB5_CALLCONV (*krb5_cc_destroy_ptr)(krb5_context,
 
 #else
 
-typedef OM_uint32 _stdcall KFW_CALL;
+typedef OM_uint32 KFW_CALL;
 
-typedef  OM_uint32(KRB5_CALLCONV *gss_indicate_mechs_ptr)(OM_uint32 *, gss_OID_set *);
+typedef OM_uint32(KRB5_CALLCONV *gss_indicate_mechs_ptr)(OM_uint32 *, gss_OID_set *);
 typedef OM_uint32(KRB5_CALLCONV *gss_release_buffer_ptr)(OM_uint32 *, gss_buffer_t);
 
 typedef OM_uint32(KRB5_CALLCONV *gss_display_status_ptr)(OM_uint32 *, OM_uint32, int,

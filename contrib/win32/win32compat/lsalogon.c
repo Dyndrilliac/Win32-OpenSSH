@@ -400,7 +400,7 @@ int LsaLogon(HANDLE *hToken, char homeDir[MAX_PATH], char *user,
   //FAIL(WideCharToMultiByte( CP_UTF8, 0, profile, -1, homeDir, MAX_PATH, NULL, NULL)==0);
   //memcpy(homeDir, profile, MAX_PATH*sizeof(wchar_t));
 
-  lstrcpyW(homeDir, profile);
+  lstrcpyA(homeDir, profile);
   
   debug("homedir = [%ls]", (char *) homeDir);
 
