@@ -195,7 +195,7 @@ int ReadConsoleForTermEmul(HANDLE hInput, char *destin, int destinlen)
                                 else
                                     NetWriteString2(pParams->Socket, "\r\n", 2, 0);
                                 break;
-
+  
                             case VK_ESCAPE:
                                 NetWriteString2(pParams->Socket, (char *)ESCAPE_KEY, 1, 0);
                                 break;

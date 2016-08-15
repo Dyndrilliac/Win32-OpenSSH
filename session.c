@@ -530,7 +530,7 @@ do_exec_no_pty(Session *s, const char *command)
   }
 
   PROCESS_INFORMATION pi;
-  STARTUPINFOW si;
+  STARTUPINFO si;
   
   int pipein[2];
   int pipeout[2];
@@ -575,7 +575,7 @@ do_exec_no_pty(Session *s, const char *command)
   }  
   else
   {
-    exec_command = command;
+    exec_command = (char *)command;
   }  
 
   do_xauth = s -> display != NULL && s -> auth_proto != NULL && s -> auth_data != NULL;
@@ -715,20 +715,20 @@ do_exec_no_pty(Session *s, const char *command)
    * Change to users home directory
    */
 
-  _wchdir(s -> pw -> pw_dir);
+  chdir(s -> pw -> pw_dir);
 
-  SetEnvironmentVariableW(L"HOME", s -> pw -> pw_dir);
-  wchar_t *wstr, wchr;
-  wstr = wcschr(s->pw->pw_dir, ':');
-  if (wstr) {
-	  wchr = *(wstr + 1);
-	  *(wstr + 1) = '\0';
-	  SetEnvironmentVariableW(L"HOMEDRIVE", s->pw->pw_dir);
-	  *(wstr + 1) = wchr;
-	  SetEnvironmentVariableW(L"HOMEPATH", (wstr+1));
+  SetEnvironmentVariable("HOME", s -> pw -> pw_dir);
+  char *str, chr;
+  str = strchr(s->pw->pw_dir, ':');
+  if (str) {
+	  chr = *(str + 1);
+	  *(str + 1) = '\0';
+	  SetEnvironmentVariable("HOMEDRIVE", s->pw->pw_dir);
+	  *(str + 1) = chr;
+	  SetEnvironmentVariable("HOMEPATH", (str+1));
   }
 
-  SetEnvironmentVariableW(L"USERPROFILE", s -> pw -> pw_dir);
+  SetEnvironmentVariable("USERPROFILE", s -> pw -> pw_dir);
   
   // find the server name of the domain controller which created this token
   GetDomainFromToken ( &hToken, buf, sizeof(buf));
@@ -790,13 +790,10 @@ do_exec_no_pty(Session *s, const char *command)
    * Create the child process 
    */
    
-  wchar_t exec_command_w[MAX_PATH];
-  
-  MultiByteToWideChar(CP_UTF8, 0, exec_command, -1, exec_command_w, MAX_PATH);
   DWORD	dwStartupFlags = 0;// CREATE_SUSPENDED;  // 0
  
   SetConsoleCtrlHandler(NULL, FALSE);
-  b = CreateProcessAsUserW(hToken, NULL, exec_command_w, NULL, NULL, TRUE,
+  b = CreateProcessAsUser(hToken, NULL, exec_command, NULL, NULL, TRUE,
                               /*CREATE_NEW_PROCESS_GROUP*/ dwStartupFlags, NULL, s -> pw -> pw_dir,
                                   &si, &pi);
   /*
@@ -806,7 +803,7 @@ do_exec_no_pty(Session *s, const char *command)
 
   if ((!b) && (strcmp(name, s -> pw -> pw_name) == 0))
   {
-    b = CreateProcessW(NULL, exec_command_w, NULL, NULL, TRUE, 
+    b = CreateProcess(NULL, exec_command, NULL, NULL, TRUE, 
                           /*CREATE_NEW_PROCESS_GROUP*/ 	dwStartupFlags, NULL, s -> pw -> pw_dir,
                               &si, &pi);
   }
@@ -885,7 +882,7 @@ do_exec_no_pty(Session *s, const char *command)
   } 
   else 
   {
-    server_loop(pi.hProcess, pipein[1], pipeout[0], pipeerr[0]);
+    server_loop((pid_t)pi.hProcess, pipein[1], pipeout[0], pipeerr[0]);
     
     /* 
      * server_loop has closed inout[0] and err[0]. 
@@ -2963,13 +2960,13 @@ session_close_single_x11(int id, void *arg)
        * Try wait 100 ms until child finished.
        */
 
-      if (WaitForSingleObject(s -> pid, 100) == WAIT_TIMEOUT)
+      if (WaitForSingleObject((HANDLE)s -> pid, 100) == WAIT_TIMEOUT)
       {
         /* 
          * If still not closed, kill 'cmd.exe' process.
          */
     
-        if (TerminateProcess(s -> pid, 1) == TRUE)
+        if (TerminateProcess((HANDLE)s -> pid, 1) == TRUE)
         {
           debug("Process %u terminated.", s -> pid);
         }
@@ -2979,7 +2976,7 @@ session_close_single_x11(int id, void *arg)
         } 
       }
     
-      CloseHandle(s -> pid);
+      CloseHandle((HANDLE)s -> pid);
     }
   
   #endif

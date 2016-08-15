@@ -104,7 +104,12 @@ int ConInit( DWORD OutputHandle, BOOL fSmartInit )
 
     if ( os.dwPlatformId == VER_PLATFORM_WIN32_NT )
     {
-        dwAttributes = (DWORD)ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;  // PERFECT in NT
+        char *term = getenv("TERM");
+        dwAttributes = (DWORD)ENABLE_PROCESSED_OUTPUT;  // PERFECT in NT
+
+        if (term != NULL && (_stricmp(term, "ansi") == 0 || _stricmp(term, "passthru")))
+            dwAttributes |= (DWORD)ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+
         SetConsoleMode(hOutputConsole, dwAttributes); // Windows NT
     }
     else

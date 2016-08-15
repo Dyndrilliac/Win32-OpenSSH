@@ -1492,7 +1492,7 @@ channel_set_reuseaddr(int fd)
 	 * Set socket options.
 	 * Allow local port reuse in TIME_WAIT.
 	 */
-	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1)
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on)) == -1)
 		error("setsockopt SO_REUSEADDR fd %d: %s", fd, strerror(errno));
 }
 
@@ -1611,7 +1611,7 @@ channel_post_connecting(Channel *c, fd_set *readset, fd_set *writeset)
 	socklen_t sz = sizeof(err);
 
 	if (FD_ISSET(c->sock, writeset)) {
-		if (getsockopt(c->sock, SOL_SOCKET, SO_ERROR, &err, &sz) < 0) {
+		if (getsockopt(c->sock, SOL_SOCKET, SO_ERROR, (char *)&err, &sz) < 0) {
 			err = errno;
 			error("getsockopt SO_ERROR failed");
 		}

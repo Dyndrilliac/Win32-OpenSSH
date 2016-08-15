@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(OpenSSH-Src-Path)openbsd-compat\arc4random.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="$(OpenSSH-Src-Path)openbsd-compat\base64.c">
       <Filter>Source Files</Filter>
     </ClCompile>

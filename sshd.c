@@ -503,7 +503,7 @@ static void
 main_sigchld_handler(int sig)
 {
 	int save_errno = errno;
-	pid_t pid;
+	int pid;
 	int status;
 
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0 ||
@@ -1373,7 +1373,7 @@ server_listen(void)
 		 * Allow local port reuse in TIME_WAIT.
 		 */
 		if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR,
-		    &on, sizeof(on)) == -1)
+            (char *)&on, sizeof(on)) == -1)
 			error("setsockopt SO_REUSEADDR: %s", strerror(errno));
 
 		/* Only communicate in IPv6 over AF_INET6 sockets. */
@@ -1584,7 +1584,7 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 				memset(&si, 0, sizeof(STARTUPINFO));
 
 				char remotesoc[64];
-				snprintf(remotesoc, sizeof(remotesoc), "%d", sfd_to_handle(*newsock));
+				snprintf(remotesoc, sizeof(remotesoc), "%p", sfd_to_handle(*newsock));
 				SetEnvironmentVariable("SSHD_REMSOC", remotesoc);
 
 				si.cb = sizeof(STARTUPINFO);
@@ -2515,14 +2515,14 @@ main(int ac, char **av)
       }
       else
       {        
-        int remotesochandle ;
+        DWORD_PTR remotesochandle ;
         remotesochandle = atoi( getenv("SSHD_REMSOC") );
 
-        sock_in = sock_out = newsock = w32_allocate_fd_for_handle(remotesochandle, TRUE) ; 
+        sock_in = sock_out = newsock = w32_allocate_fd_for_handle((HANDLE)remotesochandle, TRUE) ; 
 		
 		// we have the socket handle, delete it for child processes we create like shell 
 		SetEnvironmentVariable("SSHD_REMSOC", NULL);
-		SetHandleInformation(remotesochandle, HANDLE_FLAG_INHERIT, 0); // make the handle not to be inherited
+		SetHandleInformation((HANDLE)remotesochandle, HANDLE_FLAG_INHERIT, 0); // make the handle not to be inherited
 
         /*
          * We don't have a startup_pipe 
@@ -2626,7 +2626,7 @@ main(int ac, char **av)
 
 	/* Set SO_KEEPALIVE if requested. */
 	if (options.tcp_keep_alive && packet_connection_is_on_socket() &&
-	    setsockopt(sock_in, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) < 0)
+	    setsockopt(sock_in, SOL_SOCKET, SO_KEEPALIVE, (char *)&on, sizeof(on)) < 0)
 		error("setsockopt SO_KEEPALIVE: %.100s", strerror(errno));
 
 	if ((remote_port = get_remote_port()) < 0) {

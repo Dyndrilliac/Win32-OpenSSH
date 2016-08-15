@@ -278,6 +278,7 @@ size_t ssh_options_cnt = 0;
 size_t ssh_options_alloc = 0;
 
 // start: Windows specfic functions
+#undef S_ISDIR
 #define S_ISDIR(x) (x & _S_IFDIR)
 
 static int g_RootMode = 0;

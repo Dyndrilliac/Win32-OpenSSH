@@ -304,7 +304,7 @@ w32_shutdown(int fd, int how) {
 }
 
 int
-w32_socketpair(int domain, int type, int sv[2]) {
+w32_socketpair(int domain, int type, int protocol, int sv[2]) {
 	errno = ENOTSUP;
 	debug("socketpair - ERROR not supported");
 	return -1;
@@ -362,8 +362,8 @@ w32_open(const char *pathname, int flags, ...) {
 	return min_index;
 }
 
-int
-w32_read(int fd, void *dst, unsigned int max) {
+size_t
+w32_read(int fd, void *dst, size_t max) {
 	CHECK_FD(fd);
 
 	if (fd_table.w32_ios[fd]->type == SOCK_FD)

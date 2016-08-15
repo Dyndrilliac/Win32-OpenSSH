@@ -562,7 +562,7 @@ server_loop(pid_t pid, int fdin_arg, int fdout_arg, int fderr_arg)
 	int max_fd = 0;
 	u_int nalloc = 0;
 	int wait_status;	/* Status returned by wait(). */
-	pid_t wait_pid;		/* pid returned by wait(). */
+	int wait_pid;		/* pid returned by wait(). */
 	int waiting_termination = 0;	/* Have displayed waiting close message. */
 	u_int64_t max_time_milliseconds;
 	u_int previous_stdout_buffer_bytes;
@@ -800,7 +800,7 @@ server_loop(pid_t pid, int fdin_arg, int fdout_arg, int fderr_arg)
 static void
 collect_children(void)
 {
-	pid_t pid;
+	int pid;
 	sigset_t oset, nset;
 	int status;
 

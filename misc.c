@@ -142,7 +142,7 @@ set_nodelay(int fd)
 	socklen_t optlen;
 
 	optlen = sizeof opt;
-	if (getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &opt, &optlen) == -1) {
+	if (getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&opt, &optlen) == -1) {
 		debug("getsockopt TCP_NODELAY: %.100s", strerror(errno));
 		return;
 	}
@@ -152,7 +152,7 @@ set_nodelay(int fd)
 	}
 	opt = 1;
 	debug2("fd %d setting TCP_NODELAY", fd);
-	if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof opt) == -1)
+	if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&opt, sizeof opt) == -1)
 		error("setsockopt TCP_NODELAY: %.100s", strerror(errno));
 }
 
@@ -661,6 +661,7 @@ wchar_t    *percent_expand_w(const wchar_t *string, ...)
                 const wchar_t *repl;
         } keys[EXPAND_MAX_KEYS];
         wchar_t buf[4096];
+        wchar_t *aptr = NULL;
         va_list ap;
 
         /* Gather keys */
@@ -694,9 +695,9 @@ wchar_t    *percent_expand_w(const wchar_t *string, ...)
                         goto append;
                 for (j = 0; j < num_keys; j++) {
                         if (wcschr(keys[j].key, *string) != NULL) {
-                                i = wcsncat(buf, keys[j].repl, sizeof(buf));
+                                aptr = wcsncat(buf, keys[j].repl, sizeof(buf));
                                 buf[sizeof(buf)-1] = 0;
-                                if (i >= sizeof(buf))
+                                if (aptr == NULL)
                                         fatal("%s: string too long", __func__);
                                 break;
                         }
@@ -1204,7 +1205,7 @@ sock_set_v6only(int s)
 	int on = 1;
 
 	debug3("%s: set socket %d IPV6_V6ONLY", __func__, s);
-	if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) == -1)
+	if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&on, sizeof(on)) == -1)
 		error("setsockopt IPV6_V6ONLY: %s", strerror(errno));
 #endif
 }

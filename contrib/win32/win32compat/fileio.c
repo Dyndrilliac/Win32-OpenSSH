@@ -43,8 +43,8 @@
 #define WRITE_BUFFER_SIZE 100*1024
 #define errno_from_Win32LastError() errno_from_Win32Error(GetLastError())
 
-int termio_initiate_read(struct w32_io* pio);
-int termio_initiate_write(struct w32_io* pio, DWORD num_bytes);
+int termio_initiate_read(struct w32_io* pio, BOOL bAsync);
+int termio_initiate_write(struct w32_io* pio, DWORD num_bytes, BOOL bAsync);
 
 /* maps Win32 error to errno */
 int
@@ -353,7 +353,7 @@ fileio_read(struct w32_io* pio, void *dst, unsigned int max) {
 
 	if (fileio_is_io_available(pio, TRUE) == FALSE) {
 		if (FILETYPE(pio) == FILE_TYPE_CHAR) {
-			if (-1 == termio_initiate_read(pio))
+			if (-1 == termio_initiate_read(pio, FALSE))
 				return -1;
 		}
 		else {
@@ -442,6 +442,7 @@ VOID CALLBACK WriteCompletionRoutine(
 int
 fileio_write(struct w32_io* pio, const void *buf, unsigned int max) {
 	int bytes_copied;
+    BOOL bAsync = FALSE;
 
 	debug2("write - io:%p", pio);
 
@@ -486,32 +487,20 @@ fileio_write(struct w32_io* pio, const void *buf, unsigned int max) {
 	memcpy(pio->write_details.buf, buf, bytes_copied);
 
 	if (FILETYPE(pio) == FILE_TYPE_CHAR) {
-		if (termio_initiate_write(pio, bytes_copied) == 0) {
-			pio->write_details.pending = TRUE;
-			pio->write_details.remaining = bytes_copied;
-		}
-		else
-			return -1;
+        bAsync = FALSE;
 	}
 	else {
-		if (WriteFileEx(WINHANDLE(pio), pio->write_details.buf, bytes_copied,
-			&pio->write_overlapped, &WriteCompletionRoutine)) {
-			pio->write_details.pending = TRUE;
-			pio->write_details.remaining = bytes_copied;
-		}
-		else {
-			errno = errno_from_Win32LastError();
-			/* read end of the pipe closed ?   */
-			if ((FILETYPE(pio) == FILE_TYPE_PIPE) && (errno == ERROR_BROKEN_PIPE)) {
-				debug("write - ERROR:read end of the pipe closed, io:%p", pio);
-				errno = EPIPE;
-			}
-			debug("write ERROR from cb(2):%d, io:%p", errno, pio);
-			return -1;
-		}
-	}
+        bAsync = TRUE;
+    }
 
-	if (w32_io_is_blocking(pio)) {
+    if (termio_initiate_write(pio, bytes_copied, bAsync) == 0) {
+        pio->write_details.pending = TRUE;
+        pio->write_details.remaining = bytes_copied;
+    }
+    else
+        return -1;
+
+	if (w32_io_is_blocking(pio) || bAsync) {
 		while (pio->write_details.pending) {
 			if (wait_for_any_event(NULL, 0, INFINITE) == -1) {
 				/* if interrupted but write has completed, we are good*/
@@ -622,7 +611,7 @@ fileio_on_select(struct w32_io* pio, BOOL rd) {
 	if (!pio->read_details.pending && !fileio_is_io_available(pio, rd))
 		/* initiate read, record any error so read() will pick up */
 		if (FILETYPE(pio) == FILE_TYPE_CHAR) {
-			if (termio_initiate_read(pio) != 0) {
+			if (termio_initiate_read(pio, FALSE) != 0) {
 				pio->read_details.error = errno;
 				errno = 0;
 				return;

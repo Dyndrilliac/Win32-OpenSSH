@@ -385,49 +385,34 @@ auth_root_allowed(const char *method)
  
 #ifdef WIN32_FIXME
 
-wchar_t *expand_authorized_keys(const wchar_t *filename, struct passwd *pw)
+char *expand_authorized_keys(const char *filename, struct passwd *pw)
 {
-  wchar_t *file_w, ret[MAXPATHLEN], pw_name_w[MAXPATHLEN], filename_w[MAXPATHLEN];
-
+  char *file = NULL;
+  char *slash = NULL;
+  char *ret[MAXPATHLEN];
   int i;
-  
-  wchar_t *slash;
-  
-  i = MultiByteToWideChar(CP_UTF8, 0, filename, -1, filename_w, MAXPATHLEN);
-  
-  if (i == 0)
-  {
-    fatal("expand_authorized_keys: unable to convert path to UTF-16");
-  }  
-  
-  MultiByteToWideChar(CP_UTF8, 0, pw -> pw_name, -1, pw_name_w, MAXPATHLEN);
-  
-  if (i == 0)
-  {
-    fatal("expand_authorized_keys: unable to convert path to UTF-16");
-  }
-  
-  file_w = percent_expand_w(filename_w, L"h", pw -> pw_dir,
-                                L"u", pw_name_w, (char *) NULL);
+
+  file = percent_expand(filename, "h", pw -> pw_dir,
+        "u", pw->pw_name, (char *) NULL);
   
   /*
    * Replace '/'  with '\'
    */
 
-  slash = file_w; 
+  slash = file; 
   
-  while ((slash = wcschr(slash, L'/')))
+  while ((slash = strchr(slash, '/')))
   {
-    *slash = L'\\';
+    *slash = '\\';
   }
   
   /*
    * Absolute path given.
    */
    
-  if (wcschr(file_w, ':'))
+  if (strchr(file, ':'))
   {
-    i = _snwprintf(ret, sizeof(ret), L"%ls", file_w);
+    i = snprintf((char* const)ret, sizeof(ret), "%s", file);
   }
    
   /*
@@ -436,7 +421,7 @@ wchar_t *expand_authorized_keys(const wchar_t *filename, struct passwd *pw)
    
   else
   {
-    i = _snwprintf(ret, sizeof(ret), L"%ls\\%ls", pw->pw_dir, file_w);
+    i = snprintf((char *const)ret, sizeof(ret), "%s\\%s", pw->pw_dir, file);
   }  
   
   if (i < 0 || (size_t) i >= sizeof(ret))
@@ -444,9 +429,9 @@ wchar_t *expand_authorized_keys(const wchar_t *filename, struct passwd *pw)
     fatal("expand_authorized_keys: path too long");
   }  
 
-  free(file_w);
+  free(file);
   
-  return (_wcsdup(ret));
+  return (strdup((const char*)ret));
 }
 
 #else /* WIN32_FIXME */
@@ -638,11 +623,7 @@ auth_openfile(const char *file, struct passwd *pw, int strict_modes,
 	int fd;
 	FILE *f;
 	
-#ifdef WIN32_FIXME
-    if ((fd = _wopen(file, O_RDONLY|O_NONBLOCK)) == -1) {
-#else
 	if ((fd = open(file, O_RDONLY|O_NONBLOCK)) == -1) {
-#endif
 		if (log_missing || errno != ENOENT)
 			debug("Could not open %s '%s': %s", file_type, file,
 			   strerror(errno));

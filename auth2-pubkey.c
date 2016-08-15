@@ -78,6 +78,8 @@
 #include "channels.h" /* XXX for session.h */
 #include "session.h" /* XXX for child_set_env(); refactor? */
 
+#define AUTH_REQUEST "keyauthenticate"
+
 /* import */
 extern ServerOptions options;
 extern u_char *session_id2;
@@ -197,14 +199,14 @@ userauth_pubkey(Authctxt *authctxt)
 			int sock = -1, r;
 			u_char *blob = NULL;
 			size_t blen = 0;
-			DWORD token = 0;
+			HANDLE token = NULL;
 			HANDLE h = INVALID_HANDLE_VALUE;
 			struct sshbuf *msg = NULL;
 
 			while (1) {
 				RegOpenKeyEx(HKEY_LOCAL_MACHINE, SSH_AGENT_ROOT, 0, KEY_QUERY_VALUE, &agent_root);
 				if (agent_root)
-					RegQueryValueEx(agent_root, "ProcessId", 0, NULL, &agent_pid, &tmp_size);
+					RegQueryValueEx(agent_root, "ProcessId", 0, NULL, (LPBYTE)(&agent_pid), &tmp_size);
 					
 
 				h = CreateFile(
@@ -231,14 +233,14 @@ userauth_pubkey(Authctxt *authctxt)
 				msg = sshbuf_new();
 				if (!msg)
 					break;
-				if ((r = sshbuf_put_cstring(msg, "keyauthenticate")) != 0 ||
+				if ((r = sshbuf_put_cstring(msg, AUTH_REQUEST)) != 0 ||
 					(r = sshkey_to_blob(key, &blob, &blen)) != 0 ||
 					(r = sshbuf_put_string(msg, blob, blen)) != 0 ||
 					(r = sshbuf_put_cstring(msg, authctxt->pw->pw_name)) != 0 ||
 					(r = sshbuf_put_string(msg, sig, slen)) != 0 ||
 					(r = sshbuf_put_string(msg, buffer_ptr(&b), buffer_len(&b))) != 0 ||
 					(r = ssh_request_reply(sock, msg, msg)) != 0 ||
-					(r = sshbuf_get_u32(msg, &token)) != 0) {
+					(r = sshbuf_get_u64(msg, (u_int64_t *)&token)) != 0) {
 					debug("auth agent did not authorize client %s", authctxt->pw->pw_name);
 					break;
 				}
@@ -743,7 +745,7 @@ match_principals_command(struct passwd *user_pw, struct sshkey_cert *cert)
 	int i, ac = 0, uid_swapped = 0;
 	pid_t pid;
 	char *tmp, *username = NULL, *command = NULL, **av = NULL;
-	void (*osigchld)(int);
+	void (*osigchld)(int) = NULL;
 
 	if (options.authorized_principals_command == NULL)
 		return 0;
@@ -1038,7 +1040,7 @@ user_key_command_allowed2(struct passwd *user_pw, Key *key)
 	pid_t pid;
 	char *username = NULL, *key_fp = NULL, *keytext = NULL;
 	char *tmp, *command = NULL, **av = NULL;
-	void (*osigchld)(int);
+	void (*osigchld)(int) = NULL;
 
 	if (options.authorized_keys_command == NULL)
 		return 0;

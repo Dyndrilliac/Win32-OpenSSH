@@ -103,7 +103,8 @@ termio_initiate_read(struct w32_io* pio) {
 	return 0;
 }
 
-static VOID CALLBACK WriteAPCProc(
+static VOID CALLBACK 
+WriteAPCProc(
 	_In_ ULONG_PTR dwParam
 	) {
 	struct w32_io* pio = (struct w32_io*)dwParam;
@@ -119,7 +120,69 @@ static VOID CALLBACK WriteAPCProc(
 	pio->write_overlapped.hEvent = 0;
 }
 
-static DWORD WINAPI WriteThread(
+static VOID CALLBACK
+WriteAsyncAPCProc(
+    _In_ ULONG_PTR dwParam
+) {
+    struct w32_io* pio = (struct w32_io*)dwParam;
+
+    debug3("TermWrite CB - io:%p, bytes: %d, pending: %d, error: %d", pio, write_status.transferred,
+        pio->write_details.pending, write_status.error);
+    pio->write_details.error = write_status.error;
+    pio->write_details.remaining -= write_status.transferred;
+    /*TODO- assert that remaining is 0 by now*/
+    pio->write_details.completed = 0;
+    pio->write_details.pending = FALSE;
+    CloseHandle(pio->write_overlapped.hEvent);
+    pio->write_overlapped.hEvent = 0;
+}
+
+static DWORD WINAPI
+WriteAsyncThread(
+    _In_ LPVOID lpParameter
+) {
+    struct w32_io* pio = (struct w32_io*)lpParameter;
+
+    // Always write to the end (if offsets are used).
+    pio->write_overlapped.Offset = 0xFFFFFFFF;
+    pio->write_overlapped.OffsetHigh = 0xFFFFFFFF;
+
+    debug3("TermWrite thread, io:%p", pio);
+    if (!WriteFile(WINHANDLE(pio), pio->write_details.buf, write_status.to_transfer,
+            NULL, &pio->write_overlapped)) {
+        write_status.error = GetLastError();
+        if (write_status.error == ERROR_IO_PENDING) {
+
+            WaitForSingleObject(pio->write_overlapped.hEvent, 0);
+
+            if (!GetOverlappedResult(WINHANDLE(pio), &pio->write_overlapped,
+                &write_status.transferred, TRUE)) {
+                debug("TermAsyncWrite thread - GetOverlappedResult failed %d, io:%p", write_status.error, pio);
+            }
+
+            write_status.error = 0;
+        }
+        else {
+            debug("TermAsyncWrite thread - WriteFile failed %d, io:%p", write_status.error, pio);
+        }
+    }
+    else {
+        if (!GetOverlappedResult(WINHANDLE(pio), &pio->write_overlapped,
+            &write_status.transferred, TRUE)) {
+            debug("TermAsyncWrite thread - GetOverlappedResult failed %d, io:%p", write_status.error, pio);
+        }
+    }
+
+    if (0 == QueueUserAPC(WriteAsyncAPCProc, main_thread, (ULONG_PTR)pio)) {
+        debug("TermAsyncWrite thread - ERROR QueueUserAPC failed %d, io:%p", GetLastError(), pio);
+        pio->write_details.error = GetLastError();
+        DebugBreak();
+    }
+    return 0;
+}
+
+static DWORD WINAPI 
+WriteThread(
 	_In_ LPVOID lpParameter
 	) {
 	struct w32_io* pio = (struct w32_io*)lpParameter;
@@ -140,22 +203,36 @@ static DWORD WINAPI WriteThread(
 }
 
 int
-termio_initiate_write(struct w32_io* pio, DWORD num_bytes) {
+termio_initiate_write(struct w32_io* pio, DWORD num_bytes, BOOL bAsync) {
 	HANDLE write_thread;
 
 	debug3("TermWrite initiate io:%p", pio);
 	memset(&write_status, 0, sizeof(write_status));
 	write_status.to_transfer = num_bytes;
-	write_thread = CreateThread(NULL, 0, WriteThread, pio, 0, NULL);
-	if (write_thread == NULL) {
+    if (bAsync) {
+        pio->write_overlapped.hEvent = CreateEvent(NULL, false, false, NULL);
+
+        write_thread = CreateThread(NULL, 0, WriteAsyncThread, pio, CREATE_SUSPENDED, NULL);
+    }
+    else {
+        write_thread = CreateThread(NULL, 0, WriteThread, pio, CREATE_SUSPENDED, NULL);
+    }
+
+    if (write_thread == NULL) {
+        if (pio->write_overlapped.hEvent) {
+            CloseHandle(pio->write_overlapped.hEvent);
+            pio->write_overlapped.hEvent = NULL;
+        }
 		errno = errno_from_Win32Error(GetLastError());
 		debug("TermWrite initiate - ERROR CreateThread %d, io:%p", GetLastError(), pio);
 		return -1;
 	}
 
-	pio->write_overlapped.hEvent = write_thread;
+    if (!bAsync)
+        pio->write_overlapped.hEvent = write_thread;
 	pio->write_details.pending = TRUE;
-	return 0;
+    ResumeThread(write_thread);
+    return 0;
 }
 
 

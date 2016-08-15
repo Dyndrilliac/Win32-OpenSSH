@@ -39,6 +39,14 @@
 #define WM_APPEXIT WM_USER+1
 #define MAX_EXPECTED_BUFFER_SIZE 1024
 
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING  0x4
+#endif
+
+#ifndef ENABLE_VIRTUAL_TERMINAL_INPUT
+#define ENABLE_VIRTUAL_TERMINAL_INPUT 0x0200
+#endif
+
 typedef struct consoleEvent {
     DWORD event;
     HWND  hwnd;
@@ -56,6 +64,7 @@ BOOL istty = FALSE;
 BOOL bRet = FALSE;
 BOOL bNoScrollRegion = FALSE;
 BOOL bStartup = TRUE;
+BOOL bAnsi = FALSE;
 
 HANDLE child_out = INVALID_HANDLE_VALUE;
 HANDLE child_in = INVALID_HANDLE_VALUE;
@@ -759,7 +768,7 @@ DWORD ProcessEvent(void *p) {
     return ERROR_SUCCESS;
 }
 
-DWORD ProcessEventQueue(void *p) {
+DWORD WINAPI ProcessEventQueue(LPVOID p) {
 
     while (1) {
 
@@ -791,8 +800,23 @@ DWORD ProcessEventQueue(void *p) {
             }
         }
 
-        if (child_out != INVALID_HANDLE_VALUE && child_out != NULL)
+        if (child_in  != INVALID_HANDLE_VALUE && child_in  != NULL &&
+            child_out != INVALID_HANDLE_VALUE && child_out != NULL)
         {
+            DWORD dwInputMode;
+            DWORD dwOutputMode;
+
+            if (GetConsoleMode(child_in, &dwInputMode) && GetConsoleMode(child_out, &dwOutputMode)) {
+                if (((dwOutputMode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) == ENABLE_VIRTUAL_TERMINAL_PROCESSING) &&
+                    ((dwInputMode & ENABLE_VIRTUAL_TERMINAL_INPUT) == ENABLE_VIRTUAL_TERMINAL_INPUT))
+                {
+                    bAnsi = TRUE;
+                }
+                else {
+                    bAnsi = FALSE;
+                }
+            }
+
             ZeroMemory(&consoleInfo, sizeof(consoleInfo));
             consoleInfo.cbSize = sizeof(consoleInfo);
 
@@ -860,7 +884,7 @@ void QueueEvent(
     return;
 }
 
-DWORD ProcessPipes(void *p) {
+DWORD WINAPI ProcessPipes(LPVOID p) {
 
     BOOL ret;
     DWORD dwStatus;
@@ -869,8 +893,8 @@ DWORD ProcessPipes(void *p) {
     while (1) {
         char buf[128];
         DWORD rd = 0, wr = 0, i = 0;
-        GOTO_CLEANUP_ON_FALSE(ReadFile(pipe_in, buf, 128, &rd, NULL));
 
+        GOTO_CLEANUP_ON_FALSE(ReadFile(pipe_in, buf, 128, &rd, NULL));
         if (!istty) { /* no tty, just send it accross */
             GOTO_CLEANUP_ON_FALSE(WriteFile(child_pipe_write, buf, rd, &wr, NULL));
             continue;
@@ -882,95 +906,7 @@ DWORD ProcessPipes(void *p) {
 
             INPUT_RECORD ir;
 
-            if (buf[i] == '\r')
-            {
-                SendKeyStroke(child_in, VK_RETURN, buf[0]);
-            }
-            else if (buf[i] == '\b')
-            {
-                SendKeyStroke(child_in, VK_BACK, buf[0]);
-            }
-            else if (buf[i] == '\t')
-            {
-                SendKeyStroke(child_in, VK_TAB, buf[0]);
-            }
-            else if (buf[i] == '\x1b') 
-            {                
-                // These are incoming ANSI keystrokes.
-                switch (rd) {
-                case 1:
-                    SendKeyStroke(child_in, VK_ESCAPE, buf[0]);
-                    break;
-                case 3:
-                    switch (buf[i + 1])
-                    {
-                    case '[':
-                        switch (buf[i + 2])
-                        {
-                        case 'A':
-                            SendKeyStroke(child_in, VK_UP, 0);
-                            i = i + 2;
-                            break;
-                        case 'B':
-                            SendKeyStroke(child_in, VK_DOWN, 0);
-                            i = i + 2;
-                            break;
-                        case 'C':
-                            SendKeyStroke(child_in, VK_RIGHT, 0);
-                            i = i + 2;
-                            break;
-                        case 'D':
-                            SendKeyStroke(child_in, VK_LEFT, 0);
-                            i = i + 2;
-                            break;
-                        default:
-                            break;
-                        }
-                    default:
-                        break;
-                    }
-                case 4:
-                    switch (buf[i + 1]) {
-                    case '[':
-                    {
-                        switch (buf[i + 2]) {
-                        case '2':
-                            switch (buf[i + 3]) {
-                            case '~':
-                            {
-                                SendKeyStroke(child_in, VK_INSERT, 0);
-                                i = i + 3;
-                                break;
-                            }
-                            default:
-                                break;
-                            }
-                        case '3':
-                            switch (buf[i + 3]) {
-                            case '~':
-                            {
-                                SendKeyStroke(child_in, VK_DELETE, 0);
-                                i = i + 3;
-                                break;
-                            }
-                            default:
-                                break;
-                            }
-                        default:
-                            break;
-                        }
-                    }
-                    default:
-                        break;
-                    }
-                default:
-                    // Write the string to the console
-                    WriteConsole(child_in, buf, rd, &wr, NULL);
-                    break;
-                }
-            }
-            else
-            {
+            if (bAnsi) {
                 ir.EventType = KEY_EVENT;
                 ir.Event.KeyEvent.bKeyDown = TRUE;
                 ir.Event.KeyEvent.wRepeatCount = 1;
@@ -982,6 +918,121 @@ DWORD ProcessPipes(void *p) {
 
                 ir.Event.KeyEvent.bKeyDown = FALSE;
                 WriteConsoleInputA(child_in, &ir, 1, &wr);
+            }
+            else
+            {
+                if (buf[i] == '\r')
+                {
+                    SendKeyStroke(child_in, VK_RETURN, buf[0]);
+                }
+                else if (buf[i] == '\b')
+                {
+                    SendKeyStroke(child_in, VK_BACK, buf[0]);
+                }
+                else if (buf[i] == '\t')
+                {
+                    SendKeyStroke(child_in, VK_TAB, buf[0]);
+                }
+                else if (buf[i] == '\x1b')
+                {
+                    switch (rd) {
+                    case 1:
+                        SendKeyStroke(child_in, VK_ESCAPE, buf[0]);
+                        break;
+                    case 3:
+                        switch (buf[i + 1])
+                        {
+                        case '[':
+                            switch (buf[i + 2])
+                            {
+                            case 'A':
+                                SendKeyStroke(child_in, VK_UP, 0);
+                                i = i + 2;
+                                break;
+                            case 'B':
+                                SendKeyStroke(child_in, VK_DOWN, 0);
+                                i = i + 2;
+                                break;
+                            case 'C':
+                                SendKeyStroke(child_in, VK_RIGHT, 0);
+                                i = i + 2;
+                                break;
+                            case 'D':
+                                SendKeyStroke(child_in, VK_LEFT, 0);
+                                i = i + 2;
+                                break;
+                            default:
+                                break;
+                            }
+                        default:
+                            break;
+                        }
+                        break;
+                    case 4:
+                        switch (buf[i + 1]) {
+                        case '[':
+                        {
+                            switch (buf[i + 2]) {
+                            case '2':
+                                switch (buf[i + 3]) {
+                                case '~':
+                                {
+                                    SendKeyStroke(child_in, VK_INSERT, 0);
+                                    i = i + 3;
+                                    break;
+                                }
+                                default:
+                                    break;
+                                }
+                                break;
+                            case '3':
+                                switch (buf[i + 3]) {
+                                case '~':
+                                {
+                                    SendKeyStroke(child_in, VK_DELETE, 0);
+                                    i = i + 3;
+                                    break;
+                                }
+                                default:
+                                    break;
+                                }
+                                break;
+                            default:
+                                break;
+                            }
+                        }
+                        default:
+                            break;
+                        }
+                    default:
+                        ir.EventType = KEY_EVENT;
+                        ir.Event.KeyEvent.bKeyDown = TRUE;
+                        ir.Event.KeyEvent.wRepeatCount = 1;
+                        ir.Event.KeyEvent.wVirtualKeyCode = 0;
+                        ir.Event.KeyEvent.wVirtualScanCode = 0;
+                        ir.Event.KeyEvent.uChar.AsciiChar = buf[i];
+                        ir.Event.KeyEvent.dwControlKeyState = 0;
+                        WriteConsoleInputA(child_in, &ir, 1, &wr);
+
+                        ir.Event.KeyEvent.bKeyDown = FALSE;
+                        WriteConsoleInputA(child_in, &ir, 1, &wr);
+
+                        break;
+                    }
+                }
+                else {
+                    ir.EventType = KEY_EVENT;
+                    ir.Event.KeyEvent.bKeyDown = TRUE;
+                    ir.Event.KeyEvent.wRepeatCount = 1;
+                    ir.Event.KeyEvent.wVirtualKeyCode = 0;
+                    ir.Event.KeyEvent.wVirtualScanCode = 0;
+                    ir.Event.KeyEvent.uChar.AsciiChar = buf[i];
+                    ir.Event.KeyEvent.dwControlKeyState = 0;
+                    WriteConsoleInputA(child_in, &ir, 1, &wr);
+
+                    ir.Event.KeyEvent.bKeyDown = FALSE;
+                    WriteConsoleInputA(child_in, &ir, 1, &wr);
+                }
             }
 
             i++;

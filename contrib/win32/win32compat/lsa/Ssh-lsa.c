@@ -96,14 +96,14 @@ void LsaFreeUnicodeString(PUNICODE_STRING lsaStr)
 NTSTATUS FillUnicodeString(UNICODE_STRING *lsaStr, const Char *str)
 {
 	NTSTATUS ntStat = STATUS_NO_MEMORY;
-	USHORT cbSize = 0;
+	size_t cbSize = 0;
 	FAIL(lsaStr == NULL);
 	FAIL(lsaStr->Buffer == NULL);
 	FAIL(str == NULL);
 	cbSize = strlen(str);
 	FAIL(cbSize >= lsaStr->MaximumLength);
 	_swprintf(lsaStr->Buffer, L"%hs", str);
-	lsaStr->Length = cbSize * 2;
+	lsaStr->Length = (USHORT)(cbSize * 2);
 	lsaStr->Buffer[cbSize * 2] = 0x0000;
 	ntStat = STATUS_SUCCESS;
 

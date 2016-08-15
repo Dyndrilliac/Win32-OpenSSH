@@ -2581,7 +2581,7 @@ newkeys_from_blob(struct sshbuf *m, struct ssh *ssh, int mode)
 	comp = &newkey->comp;
 
 	if ((r = sshbuf_get_cstring(b, &enc->name, NULL)) != 0 ||
-	    (r = sshbuf_get(b, &enc->cipher, sizeof(enc->cipher))) != 0 ||
+	    (r = sshbuf_get(b, (void *)&enc->cipher, sizeof(enc->cipher))) != 0 ||
 	    (r = sshbuf_get_u32(b, (u_int *)&enc->enabled)) != 0 ||
 	    (r = sshbuf_get_u32(b, &enc->block_size)) != 0 ||
 	    (r = sshbuf_get_string(b, &enc->key, &keylen)) != 0 ||

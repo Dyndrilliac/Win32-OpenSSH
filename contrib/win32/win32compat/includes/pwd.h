@@ -26,8 +26,9 @@ struct passwd *getpwuid(uid_t uid);
 struct passwd *getpwnam(const char *username);
 void endpwent(void);
 
+char *realpathWin32(const char *path, char resolved[PATH_MAX]);
+
 typedef int PWD_USER_TOKEN; /* This is really just a HANDLE, but we might not have windows.h included */
-PWD_USER_TOKEN PwdCreateUserToken(const char *pUserName, const char *pDomainName, const char *pSourceName);
 
 const char *
 user_from_uid(uid_t uid, int nouser);

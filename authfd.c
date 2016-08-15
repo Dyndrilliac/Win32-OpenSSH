@@ -102,7 +102,7 @@ ssh_get_authentication_socket(int *fdp)
 		HANDLE h;
 		RegOpenKeyEx(HKEY_LOCAL_MACHINE, SSH_AGENT_ROOT, 0, KEY_QUERY_VALUE, &agent_root);
 		if (agent_root) {
-			RegQueryValueEx(agent_root, "ProcessId", 0, NULL, &agent_pid, &tmp_size);
+			RegQueryValueEx(agent_root, "ProcessId", 0, NULL, (LPBYTE)&agent_pid, &tmp_size);
 			RegCloseKey(agent_root);
 		}
 

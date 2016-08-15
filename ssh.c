@@ -1394,8 +1394,8 @@ main(int ac, char **av)
 	 */
 	if (config == NULL) {
 #ifdef WIN32_FIXME
-  r = snprintf(buf, sizeof(buf), "%ls%s%s", pw -> pw_dir,
-                   wcscmp(pw -> pw_dir, L"/") ? "/" : "", 
+  r = snprintf(buf, sizeof(buf), "%s%s%s", pw -> pw_dir,
+                   strcmp(pw -> pw_dir, "/") ? "/" : "", 
                        _PATH_SSH_USER_DIR);
 #else
 	r = snprintf(buf, sizeof buf, "%s%s%s", pw->pw_dir,
@@ -2134,11 +2134,11 @@ load_public_identity_files(void)
 		fatal("load_public_identity_files: getpwuid failed");
 	pwname = xstrdup(pw->pw_name);
 #ifdef WIN32_FIXME
-  pwdir = _wcsdup(pw -> pw_dir);
+  pwdir = strdup(pw -> pw_dir);
   
   if (pwdir)
   {
-    sprintf(pwdir, "%ls", pw -> pw_dir);
+    sprintf(pwdir, "%s", pw -> pw_dir);
   }
 #else
 	pwdir = xstrdup(pw->pw_dir);
@@ -2203,7 +2203,7 @@ static void
 main_sigchld_handler(int sig)
 {
 	int save_errno = errno;
-	pid_t pid;
+	int pid;
 	int status;
 
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0 ||

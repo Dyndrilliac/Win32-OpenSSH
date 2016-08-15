@@ -59,6 +59,8 @@
 #include "digest.h"
 
 #ifdef	WIN32_FIXME
+#undef open
+#undef fdopen
 #define open(a,b,...) _open((a), (b), __VA_ARGS__)
 #define fdopen(a,b) _fdopen((a), (b))
 #endif
@@ -1579,6 +1581,7 @@ load_pkcs11_key(char *path)
 	return private;
 #else
 	fatal("no pkcs11 support");
+    return NULL;
 #endif /* ENABLE_PKCS11 */
 }
 

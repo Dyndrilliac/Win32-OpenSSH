@@ -2079,6 +2079,7 @@ mux_client_request_stdio_fwd(int fd)
 		    __func__, strerror(errno));
 	}
 	fatal("%s: master returned unexpected message %u", __func__, type);
+    return -1;
 }
 
 static void

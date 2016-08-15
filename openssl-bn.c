@@ -109,8 +109,7 @@ sshbn_from_hex(const char *hex, struct sshbn **retp)
 
 int sshbn_to(const struct sshbn *a, unsigned char *to)
 {
-
-	return BN_bn2bin(sshbn_bignum(a), to);
+	return BN_bn2bin((const BIGNUM *)(sshbn_bignum((struct sshbn *)a)), to);
 }
 
 size_t

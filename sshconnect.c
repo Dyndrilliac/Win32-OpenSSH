@@ -396,7 +396,7 @@ timeout_connect(int sockfd, const struct sockaddr *serv_addr,
 		/* Completed or failed */
 		optval = 0;
 		optlen = sizeof(optval);
-		if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &optval,
+		if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char *)&optval,
 		    &optlen) == -1) {
 			debug("getsockopt: %s", strerror(errno));
 			break;

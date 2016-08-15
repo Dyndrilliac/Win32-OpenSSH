@@ -111,7 +111,7 @@
 
   /** TODO - Move this to POSIX wrapper**/
   /* ??? What if fd is nonblocking ???*/
-  int writev(int fd, struct iovec *iov, int iovcnt)
+  size_t writev(int fd, const struct iovec *iov, int iovcnt)
   {
 	  int written = 0;
 
@@ -189,7 +189,7 @@ send_msg(struct sftp_conn *conn, struct sshbuf *m)
 	iov[1].iov_base = (u_char *)sshbuf_ptr(m);
 	iov[1].iov_len = sshbuf_len(m);
 
-	if (atomiciov6(writev, conn->fd_out, iov, 2,
+	if (atomiciov6(writev, conn->fd_out, (const struct iovec*)iov, 2,
 	    conn->limit_kbps > 0 ? sftpio : NULL, &conn->bwlimit_out) !=
 	    sshbuf_len(m) + sizeof(mlen))
 		fatal("Couldn't send packet: %s", strerror(errno));
@@ -200,9 +200,9 @@ send_msg(struct sftp_conn *conn, struct sshbuf *m)
 static void
 get_msg(struct sftp_conn *conn, struct sshbuf *m)
 {
-	u_int msg_len;
-	u_char *p;
-	int r;
+	u_int msg_len = 0;
+	u_char *p = NULL;
+	int r = 0;
 
 	if ((r = sshbuf_reserve(m, 4, &p)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
@@ -1498,7 +1498,7 @@ do_download(struct sftp_conn *conn, const char *remote_path,
 			tv[0].tv_sec = a->atime;
 			tv[1].tv_sec = a->mtime;
 			tv[0].tv_usec = tv[1].tv_usec = 0;
-			if (utimes(local_path, tv) == -1)
+			if (utimes((char *)local_path, tv) == -1)
 				error("Can't set times on \"%s\": %s",
 				    local_path, strerror(errno));
 		}
@@ -1598,7 +1598,7 @@ download_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 			tv[0].tv_sec = dirattrib->atime;
 			tv[1].tv_sec = dirattrib->mtime;
 			tv[0].tv_usec = tv[1].tv_usec = 0;
-			if (utimes(dst, tv) == -1)
+			if (utimes((char *)dst, tv) == -1)
 				error("Can't set times on \"%s\": %s",
 				    dst, strerror(errno));
 		} else
@@ -1910,7 +1910,7 @@ upload_dir_internal(struct sftp_conn *conn, const char *src, const char *dst,
 			return -1;
 	}
 
-	if ((dirp = opendir(src)) == NULL) {
+	if ((dirp = opendir((char *)src)) == NULL) {
 		error("Failed to open dir \"%s\": %s", src, strerror(errno));
 		return -1;
 	}

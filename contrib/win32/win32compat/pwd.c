@@ -135,8 +135,10 @@ char *GetHomeDirFromToken(char *userName, HANDLE token)
 	LPWSTR sid_str = NULL;
 	wchar_t reg_path[MAX_PATH];
 	HKEY reg_key = 0;
+    wchar_t whomedir[MAX_PATH];
+    char homedir[MAX_PATH];
 
-	/* set home dir to Windows if any of below fair*/
+    /* set home dir to Windows if any of below fair*/
 	GetWindowsDirectoryA(pw_homedir, MAX_PATH);
 
 	tmp_len = MAX_PATH;
@@ -145,10 +147,20 @@ char *GetHomeDirFromToken(char *userName, HANDLE token)
 	    ConvertSidToStringSidW(pTokenUser->User.Sid, &sid_str) == FALSE ||
 	    swprintf(reg_path, MAX_PATH, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ProfileList\\%ls", sid_str) == MAX_PATH ||
 	    RegOpenKeyExW(HKEY_LOCAL_MACHINE, reg_path, 0, STANDARD_RIGHTS_READ | KEY_QUERY_VALUE | KEY_WOW64_64KEY, &reg_key) != 0 ||
-	    RegQueryValueExW(reg_key, L"ProfileImagePath", 0, NULL, (LPBYTE)pw_homedir, &tmp_len) != 0 ){
+	    RegQueryValueExW(reg_key, L"ProfileImagePath", 0, NULL, (LPBYTE)whomedir, &tmp_len) != 0 ){
 		/* one of the above failed */
-		debug("cannot retirve profile path - perhaps user profile is not created yet");
+		debug("cannot retrieve profile path - perhaps user profile is not created yet");
 	}
+
+    int n = WideCharToMultiByte(
+        GetConsoleCP(),
+        0,
+        (LPCWCH)&whomedir,
+        tmp_len,
+        (LPSTR)pw_homedir,
+        MAX_PATH,
+        NULL,
+        NULL);
 
 	if (sid_str)
 		LocalFree(sid_str);

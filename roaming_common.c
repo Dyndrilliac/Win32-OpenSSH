@@ -53,7 +53,7 @@ get_snd_buf_size(void)
 	int optval;
 	socklen_t optvallen = sizeof(optval);
 
-	if (getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &optval, &optvallen) != 0)
+	if (getsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char *)&optval, &optvallen) != 0)
 		optval = DEFAULT_ROAMBUF;
 	return optval;
 }
@@ -65,7 +65,7 @@ get_recv_buf_size(void)
 	int optval;
 	socklen_t optvallen = sizeof(optval);
 
-	if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &optval, &optvallen) != 0)
+	if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *)&optval, &optvallen) != 0)
 		optval = DEFAULT_ROAMBUF;
 	return optval;
 }

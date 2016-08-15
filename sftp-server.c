@@ -1579,7 +1579,7 @@ process_extended_posix_rename(u_int32_t id)
  
 int RemoveTree(const char *path)
 {
-  DIR *d = opendir(path);
+  DIR *d = opendir((char *)path);
  
   size_t path_len = strlen(path);
 
@@ -1697,13 +1697,7 @@ static void
 process_extended_statvfs(u_int32_t id)
 {
 	char *path;
-	
-	#ifdef WIN32_FIXME
-	struct stat st;
-	#else
-	struct statvfs st;
-	#endif
-	
+	struct statvfs st;	
 	int r;
 	
 	if ((r = sshbuf_get_cstring(iqueue, &path, NULL)) != 0)
@@ -1723,11 +1717,7 @@ static void
 process_extended_fstatvfs(u_int32_t id)
 {
 	int r, handle, fd;
-	#ifdef WIN32_FIXME
-	struct stat st;
-	#else
 	struct statvfs st;
-	#endif
 
 	if ((r = get_handle(iqueue, &handle)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
@@ -1737,12 +1727,8 @@ process_extended_fstatvfs(u_int32_t id)
 		send_status(id, SSH2_FX_FAILURE);
 		return;
 	}
-#ifdef WIN32_FIXME
-  if (statvfs(handle_to_name(handle), &st) != 0)
-  #else
+
 	if (fstatvfs(fd, &st) != 0)
-  #endif
-	
 		send_status(id, errno_to_portable(errno));
 	else
 		send_statvfs(id, &st);

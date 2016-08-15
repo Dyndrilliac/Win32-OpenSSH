@@ -795,6 +795,7 @@ sdirent_comp(const void *aa, const void *bb)
 		return (rmul * NCMP(a->a.size, b->a.size));
 
 	fatal("Unknown ls sort type");
+    return -1;
 }
 
 /* sftp ls.1 replacement for directories */

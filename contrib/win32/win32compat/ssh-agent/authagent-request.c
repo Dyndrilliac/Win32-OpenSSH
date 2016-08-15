@@ -44,7 +44,7 @@ InitLsaString(LSA_STRING *lsa_string, const char *str)
 	if (str == NULL)
 		memset(lsa_string, 0, sizeof(LSA_STRING));
 	else {
-		lsa_string->Buffer = str;
+		lsa_string->Buffer = (char *)str;
 		lsa_string->Length = strlen(str);
 		lsa_string->MaximumLength = lsa_string->Length + 1;
 	}
@@ -213,7 +213,7 @@ int process_authagent_request(struct sshbuf* request, struct sshbuf* response, s
 	if ((FALSE == GetNamedPipeClientProcessId(con->connection, &client_pid)) ||
 	    ( (client_proc = OpenProcess(PROCESS_DUP_HANDLE, FALSE, client_pid)) == NULL) ||
 	    (FALSE == DuplicateHandle(GetCurrentProcess(), token, client_proc, &dup_token, TOKEN_QUERY | TOKEN_IMPERSONATE, FALSE, DUPLICATE_SAME_ACCESS)) ||
-	    (sshbuf_put_u32(response, dup_token) != 0) ) {
+	    (sshbuf_put_u64(response, (u_int64_t)dup_token) != 0) ) {
 		debug("failed to authorize user");
 		goto done;
 	}

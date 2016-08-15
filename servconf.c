@@ -638,7 +638,7 @@ derelativise_path(const char *path)
 	if (*expanded == '/')
 #endif
 		return expanded;
-	if (getcwd(cwd, sizeof(cwd)) == NULL)
+	if (getcwd(cwd, sizeof(cwd)) == 0)
 		fatal("%s: getcwd: %s", __func__, strerror(errno));
 	xasprintf(&ret, "%s/%s", cwd, expanded);
 	free(expanded);

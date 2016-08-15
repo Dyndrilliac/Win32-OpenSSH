@@ -203,7 +203,7 @@ agent_listen_loop() {
 				memset(&si, 0, sizeof(STARTUPINFOW));
 				GetModuleFileNameW(NULL, module_path, MAX_PATH);
 				SetHandleInformation(con, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
-				if ((swprintf_s(path, MAX_PATH, L"%s %d %d", module_path, con, listeners[r - 1].type) == -1 ) ||
+				if ((swprintf_s(path, MAX_PATH, L"%s %p %d", module_path, con, listeners[r - 1].type) == -1 ) ||
 				    (CreateProcessW(NULL, path, NULL, NULL, TRUE,
 					DETACHED_PROCESS, NULL, NULL,
 					&si, &pi) == FALSE)) {
