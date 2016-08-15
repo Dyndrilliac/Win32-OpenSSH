@@ -82,6 +82,7 @@ xmmap(size_t size)
 #else
 	fatal("%s: UsePrivilegeSeparation=yes and Compression=yes not supported",
 	    __func__);
+    return NULL;
 #endif /* HAVE_MMAP */
 
 }

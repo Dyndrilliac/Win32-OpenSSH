@@ -165,7 +165,7 @@ int BSDgetopt(int argc, char * const *argv, const char *opts);
 #if defined(HAVE_DECL_WRITEV) && HAVE_DECL_WRITEV == 0
 # include <sys/types.h>
 # include <sys/uio.h>
-int writev(int, struct iovec *, int);
+size_t writev(int, const struct iovec *, int);
 #endif
 
 /* Home grown routines */
