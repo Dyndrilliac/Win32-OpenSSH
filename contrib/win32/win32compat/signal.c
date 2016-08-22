@@ -236,8 +236,8 @@ wait_for_any_event(HANDLE* events, int num_events, DWORD milli_seconds)
 	memcpy(all_events, children.handles, live_children * sizeof(HANDLE));
 	memcpy(all_events + live_children, events, num_events * sizeof(HANDLE));
 
-	debug3("wait() on %d events and %d childres", num_events, live_children);
-	/* TODO - implement signal catching and handling */
+    debug3("wait() on %d events and %d children", num_events, live_children);
+    /* TODO - implement signal catching and handling */
 	if (num_all_events) {
 		DWORD ret = WaitForMultipleObjectsEx(num_all_events, all_events, FALSE,
 		    milli_seconds, TRUE);

@@ -2343,7 +2343,7 @@ main(int argc, char **argv)
      
 	setvbuf(stdout, NULL, _IONBF, 0);
 
-  #endif
+#endif
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
 #ifndef WIN32_FIXME
@@ -2354,14 +2354,14 @@ main(int argc, char **argv)
 	memset(&args, '\0', sizeof(args));
 	args.list = NULL;
 	addargs(&args, "%s", ssh_program);
-  #ifdef WIN32_FIXME
+#ifdef WIN32_FIXME
 
     addargs(&args, "-oForwardX11=no");
     addargs(&args, "-oForwardAgent=no");
     addargs(&args, "-oPermitLocalCommand=no");
     addargs(&args, "-oClearAllForwardings=yes");
   
-  #else
+#else
 	addargs(&args, "-oForwardX11 no");
 	addargs(&args, "-oForwardAgent no");
 	addargs(&args, "-oPermitLocalCommand no");
@@ -2394,15 +2394,11 @@ main(int argc, char **argv)
 			addargs(&args, "-%c", ch);
 			break;
 		case 'P':
-	#ifdef WIN32_FIXME
-      
-      addargs(&args, "-oPort=%s", optarg);      
-      
-      #else
-
-			addargs(&args, "-oPort %s", optarg);
-
-      #endif
+#ifdef WIN32_FIXME      
+        addargs(&args, "-oPort=%s", optarg);            
+#else
+        addargs(&args, "-oPort %s", optarg);
+#endif
 		
 			break;
 		case 'v':
@@ -2438,16 +2434,12 @@ main(int argc, char **argv)
 				fatal("%s (%s).", strerror(errno), optarg);
 			showprogress = 0;
 			quiet = batchmode = 1;
-		#ifdef WIN32_FIXME
 
-      addargs(&args, "-obatchmode=yes");
-      
-      #else
-
-			addargs(&args, "-obatchmode yes");
-      
-      #endif
-		
+#ifdef WIN32_FIXME
+            addargs(&args, "-obatchmode=yes"); 
+#else
+			addargs(&args, "-obatchmode yes");      
+#endif		
 			break;
 		case 'f':
 			global_fflag = 1;
@@ -2521,17 +2513,14 @@ main(int argc, char **argv)
 			fprintf(stderr, "Missing hostname\n");
 			usage();
 		}
-    #ifdef WIN32_FIXME
+#ifdef WIN32_FIXME
 
-    addargs(&args, "-oProtocol=%d", sshver);
-    
-    #else
+        addargs(&args, "-oProtocol=%d", sshver);
+#else
 
 		addargs(&args, "-oProtocol %d", sshver);
- 
-    #endif
+ #endif
 		
-
 		/* no subsystem if the server-spec contains a '/' */
 		if (sftp_server == NULL || strchr(sftp_server, '/') == NULL)
 			addargs(&args, "-s");

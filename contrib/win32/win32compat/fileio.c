@@ -251,7 +251,6 @@ struct w32_io*
 		return NULL;
 	}
 
-
 	if (createFile_flags_setup(flags, mode, &cf_flags) == -1)
 		return NULL;
 
@@ -298,42 +297,11 @@ VOID CALLBACK ReadCompletionRoutine(
 	*((__int64*)&lpOverlapped->Offset) += dwNumberOfBytesTransfered;
 }
 
-/* initiate an async read */
-/* TODO:  make this a void func, store error in context */
-int
-fileio_ReadFileEx(struct w32_io* pio, unsigned int bytes_requested) {
-	debug2("ReadFileEx io:%p", pio);
-
-	if (pio->read_details.buf == NULL) {
-		pio->read_details.buf = malloc(READ_BUFFER_SIZE);
-		if (!pio->read_details.buf) {
-			errno = ENOMEM;
-			debug2("ReadFileEx - ERROR: %d, io:%p", errno, pio);
-			return -1;
-		}
-	}
-
-	if (FILETYPE(pio) == FILE_TYPE_DISK)
-		pio->read_details.buf_size = min(bytes_requested, READ_BUFFER_SIZE);
-	else
-		pio->read_details.buf_size = READ_BUFFER_SIZE;
-
-	if (ReadFileEx(WINHANDLE(pio), pio->read_details.buf, pio->read_details.buf_size,
-		&pio->read_overlapped, &ReadCompletionRoutine))
-		pio->read_details.pending = TRUE;
-	else {
-		errno = errno_from_Win32LastError();
-		debug("ReadFileEx() ERROR:%d, io:%p", GetLastError(), pio);
-		return -1;
-	}
-
-	return 0;
-}
-
 /* read() implementation */
 int
 fileio_read(struct w32_io* pio, void *dst, unsigned int max) {
-	int bytes_copied;
+	int bytes_copied = 0;
+    BOOL bAsync = FALSE;
 
 	debug3("read - io:%p remaining:%d", pio, pio->read_details.remaining);
 
@@ -351,46 +319,33 @@ fileio_read(struct w32_io* pio, void *dst, unsigned int max) {
 		return -1;
 	}
 
-	if (fileio_is_io_available(pio, TRUE) == FALSE) {
-		if (FILETYPE(pio) == FILE_TYPE_CHAR) {
-			if (-1 == termio_initiate_read(pio, FALSE))
-				return -1;
-		}
-		else {
-			if (-1 == fileio_ReadFileEx(pio, max)) {
-				if ((FILETYPE(pio) == FILE_TYPE_PIPE)
-					&& (errno == ERROR_BROKEN_PIPE)) {
-					/* write end of the pipe closed */
-					debug("read - no more data, io:%p", pio);
-					errno = 0;
-					return 0;
-				}
-				/* on W2012, ReadFileEx on file throws a synchronous EOF error*/
-				else if ((FILETYPE(pio) == FILE_TYPE_DISK)
-					&& (errno == ERROR_HANDLE_EOF)) {
-					debug("read - no more data, io:%p", pio);
-					errno = 0;
-					return 0;
-				}
-				return -1;
-			}
-		}
+    if (fileio_is_io_available(pio, TRUE) == FALSE) {
+        if (FILETYPE(pio) == FILE_TYPE_CHAR) {
+            bAsync = FALSE;
+        }
+        else {
+            bAsync = TRUE;
+        }
 
-		/* pick up APC if IO has completed */
-		SleepEx(0, TRUE);
+        if (-1 == termio_initiate_read(pio, bAsync)) {
+            return -1;
+        }
 
-		if (w32_io_is_blocking(pio)) {
-			while (fileio_is_io_available(pio, TRUE) == FALSE) {
-				if (-1 == wait_for_any_event(NULL, 0, INFINITE))
-					return -1;
-			}
-		}
-		else if (pio->read_details.pending) {
-			errno = EAGAIN;
-			debug2("read - IO is pending, io:%p", pio);
-			return -1;
-		}
-	}
+        /* pick up APC if IO has completed */
+        SleepEx(0, TRUE);
+
+        if (w32_io_is_blocking(pio) || bAsync) {
+            while (fileio_is_io_available(pio, TRUE) == FALSE) {
+                if (-1 == wait_for_any_event(NULL, 0, INFINITE))
+                    return -1;
+            }
+        }
+        else if (pio->read_details.pending) {
+            errno = EAGAIN;
+            debug2("read - IO is pending, io:%p", pio);
+            return -1;
+        }
+    }
 
 	if (pio->read_details.error) {
 		errno = errno_from_Win32Error(pio->read_details.error);
@@ -413,6 +368,7 @@ fileio_read(struct w32_io* pio, void *dst, unsigned int max) {
 	pio->read_details.completed += bytes_copied;
 	debug2("read - io:%p read: %d remaining: %d", pio, bytes_copied,
 		pio->read_details.remaining);
+
 	return bytes_copied;
 }
 
@@ -618,11 +574,11 @@ fileio_on_select(struct w32_io* pio, BOOL rd) {
 			}
 		}
 		else {
-			if (fileio_ReadFileEx(pio, INT_MAX) != 0) {
-				pio->read_details.error = errno;
-				errno = 0;
-				return;
-			}
+            if (termio_initiate_read(pio, TRUE) != 0) {
+                pio->read_details.error = errno;
+                errno = 0;
+                return;
+            }
 		}
 }
 

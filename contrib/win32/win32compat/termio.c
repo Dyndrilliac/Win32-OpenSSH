@@ -29,24 +29,24 @@ static VOID CALLBACK ReadAPCProc(
 }
 
 static DWORD WINAPI ReadThread(
-	_In_ LPVOID lpParameter
-	) {
-	struct w32_io* pio = (struct w32_io*)lpParameter;
-	debug3("TermRead thread, io:%p", pio);
-	memset(&read_status, 0, sizeof(read_status));
-	if (!ReadFile(WINHANDLE(pio), pio->read_details.buf, 
-		pio->read_details.buf_size, &read_status.transferred, NULL)) {
-		read_status.error = GetLastError();
-		debug("TermRead thread - ReadFile failed %d, io:%p", GetLastError(), pio);
-	}
+    _In_ LPVOID lpParameter
+) {
+    struct w32_io* pio = (struct w32_io*)lpParameter;
+    debug3("TermRead thread, io:%p", pio);
+    memset(&read_status, 0, sizeof(read_status));
+    if (!ReadFile(WINHANDLE(pio), pio->read_details.buf,
+        pio->read_details.buf_size, &read_status.transferred, NULL)) {
+        read_status.error = GetLastError();
+        debug("TermRead thread - ReadFile failed %d, io:%p", GetLastError(), pio);
+    }
 
-	if (0 == QueueUserAPC(ReadAPCProc, main_thread, (ULONG_PTR)pio)) {
-		debug("TermRead thread - ERROR QueueUserAPC failed %d, io:%p", GetLastError(), pio);
-		pio->read_details.pending = FALSE;
-		pio->read_details.error = GetLastError();
-		DebugBreak();
-	}
-	return 0;
+    if (0 == QueueUserAPC(ReadAPCProc, main_thread, (ULONG_PTR)pio)) {
+        debug("TermRead thread - ERROR QueueUserAPC failed %d, io:%p", GetLastError(), pio);
+        pio->read_details.pending = FALSE;
+        pio->read_details.error = GetLastError();
+        DebugBreak();
+    }
+    return 0;
 }
 
 static DWORD WINAPI ReadConsoleThread(
@@ -76,8 +76,150 @@ static DWORD WINAPI ReadConsoleThread(
     return 0;
 }
 
+static VOID CALLBACK
+ReadAsyncAPCProc(
+    _In_ ULONG_PTR dwParam
+) {
+    struct w32_io* pio = (struct w32_io*)dwParam;
+
+    debug3("TermRead ReadAsyncAPCProc CB - io:%p, bytes: %d, pending: %d, error: %d", pio, read_status.transferred,
+        pio->read_details.pending, read_status.error);
+    pio->read_details.error = read_status.error;
+    pio->read_details.remaining = read_status.transferred;
+    pio->read_details.completed = 0;
+    pio->read_details.pending = FALSE;
+    CloseHandle(pio->read_overlapped.hEvent);
+    pio->read_overlapped.hEvent = 0;
+}
+
+static DWORD WINAPI
+ReadAsyncThread(
+    _In_ LPVOID lpParameter
+) {
+    struct w32_io* pio = (struct w32_io*)lpParameter;
+
+    DWORD dwStatus = 0;
+    BOOL bResult = FALSE;
+    BOOL bContinue = TRUE;
+
+    read_status.error = 0;
+    read_status.to_transfer = 0;
+    read_status.transferred = 0;
+
+    debug3("TermRead thread, io:%p", pio);
+    while (bContinue)
+    {
+        bContinue = FALSE;
+
+        if (!ReadFile(WINHANDLE(pio), pio->read_details.buf, pio->read_details.buf_size,
+                &read_status.transferred, &pio->read_overlapped)) {
+            read_status.error = GetLastError();
+                switch (read_status.error) {
+                case ERROR_HANDLE_EOF:
+                {
+                    debug2("TermIO ReadAsyncThread ERROR_HANDLE_EOF 1 CB - io:%p, bytes: %d, pending: %d, error: %d", pio, read_status.transferred,
+                        pio->read_details.pending, read_status.error);
+
+                    break;
+                }
+                case ERROR_IO_PENDING:
+                {
+                    BOOL bPending = TRUE;
+
+                    while (bPending)
+                    {
+                        bPending = FALSE;
+
+                        WaitForSingleObject(pio->read_overlapped.hEvent, INFINITE);
+
+                        bResult = GetOverlappedResult(WINHANDLE(pio),
+                            &pio->read_overlapped, &read_status.transferred, FALSE);
+
+                        if (!bResult)
+                        {
+                            read_status.error = GetLastError();
+                            switch (read_status.error)
+                            {
+                                case ERROR_HANDLE_EOF:
+                                {
+                                    bPending = FALSE;
+                                    bContinue = FALSE;
+                                    if(read_status.transferred > 0)
+                                        read_status.error = 0;
+
+                                    debug2("TermIO ReadAsyncThread: io:%p, bytes: %d, pending: %d, error: %d ERROR_HANDLE_EOF", pio, read_status.transferred,
+                                        pio->read_details.pending, read_status.error);
+                                    break;
+                                }
+                                case ERROR_IO_INCOMPLETE:
+                                {
+                                    bPending = TRUE;
+                                    bContinue = TRUE;
+
+                                    debug2("TermIO ReadAsyncThread: io:%p, bytes: %d, pending: %d, error: %d ERROR_IO_INCOMPLETE", pio, read_status.transferred,
+                                        pio->read_details.pending, read_status.error);
+                                    break;
+                                }
+                                case ERROR_BROKEN_PIPE:
+                                {
+                                    bPending = FALSE;
+                                    bContinue = FALSE;
+                                    read_status.error = ERROR_BROKEN_PIPE;
+
+                                    debug2("TermIO ReadAsyncThread: io:%p, bytes: %d, pending: %d, error: %d ERROR_BROKEN_PIPE", pio, read_status.transferred,
+                                        pio->read_details.pending, read_status.error);
+                                    break;
+                                }
+                                default:
+                                {
+                                    debug2("TermIO ReadAsyncThread: io:%p, bytes: %d, pending: %d, error: %d", pio, read_status.transferred,
+                                        pio->read_details.pending, read_status.error);
+
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            read_status.error = 0;
+                        }
+                    }
+                    break;
+                }
+                default:
+                {
+                    debug2("TermIO ReadAsyncThread: io:%p, bytes: %d, pending: %d, error: %d", pio, read_status.transferred,
+                        pio->read_details.pending, read_status.error);
+
+                    break;
+                }
+            }
+
+            LARGE_INTEGER quad;
+            quad.HighPart = pio->read_overlapped.OffsetHigh;
+            quad.LowPart = pio->read_overlapped.Offset;
+
+            quad.QuadPart = quad.QuadPart + read_status.transferred;
+            pio->read_overlapped.OffsetHigh = quad.HighPart;
+            pio->read_overlapped.Offset = quad.LowPart;
+        }
+        else
+        {
+            debug2("TermIO ReadAsyncThread: io:%p, bytes: %d, pending: %d, error: %d", pio, read_status.transferred,
+                pio->read_details.pending, read_status.error);
+        }
+    }
+
+    if (0 == QueueUserAPC(ReadAsyncAPCProc, main_thread, (ULONG_PTR)pio)) {
+        debug("TermAsyncRead thread - ERROR QueueUserAPC failed %d, io:%p", GetLastError(), pio);
+        pio->read_details.pending = FALSE;
+        DebugBreak();
+    }
+    return dwStatus;
+}
+
 int
-termio_initiate_read(struct w32_io* pio) {
+termio_initiate_read(struct w32_io* pio, BOOL bAsync) {
 	HANDLE read_thread;
 
 	debug3("TermRead initiate io:%p", pio);
@@ -91,15 +233,23 @@ termio_initiate_read(struct w32_io* pio) {
 		pio->read_details.buf_size = TERM_IO_BUF_SIZE;
 	}
 
-    read_thread = CreateThread(NULL, 0, ReadConsoleThread, pio, 0, NULL);
+    if (bAsync) {
+        pio->read_overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+        read_thread = CreateThread(NULL, 0, ReadAsyncThread, pio, CREATE_SUSPENDED, NULL);
+    }
+    else 
+        read_thread = CreateThread(NULL, 0, ReadConsoleThread, pio, CREATE_SUSPENDED, NULL);
+
 	if (read_thread == NULL) {
 		errno = errno_from_Win32Error(GetLastError());
 		debug("TermRead initiate - ERROR CreateThread %d, io:%p", GetLastError(), pio);
 		return -1;
 	}
 
-	pio->read_overlapped.hEvent = read_thread;
+    if (!bAsync)
+        pio->read_overlapped.hEvent = read_thread;
 	pio->read_details.pending = TRUE;
+    ResumeThread(read_thread);
 	return 0;
 }
 
@@ -210,7 +360,7 @@ termio_initiate_write(struct w32_io* pio, DWORD num_bytes, BOOL bAsync) {
 	memset(&write_status, 0, sizeof(write_status));
 	write_status.to_transfer = num_bytes;
     if (bAsync) {
-        pio->write_overlapped.hEvent = CreateEvent(NULL, false, false, NULL);
+        pio->write_overlapped.hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
         write_thread = CreateThread(NULL, 0, WriteAsyncThread, pio, CREATE_SUSPENDED, NULL);
     }

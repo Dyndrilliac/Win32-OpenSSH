@@ -648,7 +648,6 @@ w32_select(int fds, w32_fd_set* readfds, w32_fd_set* writefds, w32_fd_set* excep
 			for (int i = 0; i < fds; i++) {
 
 				if (readfds && FD_ISSET(i, readfds)) {
-					in_set_fds++;
 					if (w32_io_is_io_available(fd_table.w32_ios[i], TRUE)) {
 						FD_SET(i, &read_ready_fds);
 						out_ready_fds++;
@@ -656,7 +655,6 @@ w32_select(int fds, w32_fd_set* readfds, w32_fd_set* writefds, w32_fd_set* excep
 				}
 
 				if (writefds && FD_ISSET(i, writefds)) {
-					in_set_fds++;
 					if (w32_io_is_io_available(fd_table.w32_ios[i], FALSE)) {
 						FD_SET(i, &write_ready_fds);
 						out_ready_fds++;
@@ -664,8 +662,8 @@ w32_select(int fds, w32_fd_set* readfds, w32_fd_set* writefds, w32_fd_set* excep
 				}
 			}
 
-			if (out_ready_fds == 0) 
-				debug3("select - wait ended without any IO completion, looping again");
+            if (out_ready_fds == 0)
+                debug3("select - wait ended without any IO completion, looping again");
 
 		}
 
