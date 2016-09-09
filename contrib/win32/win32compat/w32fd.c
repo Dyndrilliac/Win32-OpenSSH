@@ -638,7 +638,7 @@ w32_select(int fds, w32_fd_set* readfds, w32_fd_set* writefds, w32_fd_set* excep
 				time_rem = timeout_ms - (ticks_spent & 0xffffffff);
 			}
 			else
-				time_rem = 0;
+				time_rem = INFINITE;
 
 			if (0 != wait_for_any_event(events, num_events, time_rem))
 				return -1;
