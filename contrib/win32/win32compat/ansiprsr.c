@@ -510,6 +510,8 @@ unsigned char * ParseANSI(unsigned char * pszBuffer, unsigned char * pszBufferEn
 				else if (bMode & MODE_BRK)
 				{
 					// Cursor UP
+                    if (iParam[0] == 0)
+                        iParam[0] = 1;
 					ConMoveCursorPosition(0, -iParam[0]);
 				}
 				fcompletion = 1;
@@ -523,6 +525,8 @@ unsigned char * ParseANSI(unsigned char * pszBuffer, unsigned char * pszBufferEn
 				else if (bMode & MODE_BRK)
 				{
 					// Cursor DOWN
+                    if (iParam[0] == 0)
+                        iParam[0] = 1;
 					ConMoveCursorPosition(0, iParam[0]);
 				}
 				fcompletion = 1;
@@ -536,6 +540,8 @@ unsigned char * ParseANSI(unsigned char * pszBuffer, unsigned char * pszBufferEn
 				else if (bMode & MODE_BRK)
 				{
 					// Cursor right
+                    if (iParam[0] == 0)
+                        iParam[0] = 1;
 					ConMoveCursorPosition(iParam[0], 0);
 
                 }
