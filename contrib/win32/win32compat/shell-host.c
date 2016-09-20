@@ -182,18 +182,11 @@ void SendSetCursor(HANDLE hInput, int X, int Y) {
     DWORD wr = 0;
     DWORD out = 0;
 
-    static int sLastX = 0;
-    static int sLastY = 0;
-
     char formatted_output[255];
 
     out = _snprintf_s(formatted_output, sizeof(formatted_output), _TRUNCATE, "\033[%d;%dH", Y, X);
-    //if (X != sLastX || Y != sLastY)
-        if (bUseAnsiEmulation)
-            WriteFile(hInput, formatted_output, out, &wr, NULL);
-
-    sLastX = X;
-    sLastY = Y;
+    if (bUseAnsiEmulation)
+        WriteFile(hInput, formatted_output, out, &wr, NULL);
 }
 
 void SendVerticalScroll(HANDLE hInput, int lines) {
@@ -233,6 +226,8 @@ void SendCharacter(HANDLE hInput, WORD attributes, char character) {
     DWORD current = 0;
 
     char formatted_output[2048];
+
+    static USHORT pColor = 0;
 
     USHORT Color = 0;
 	ULONG Status = 0;
@@ -310,14 +305,10 @@ void SendCharacter(HANDLE hInput, WORD attributes, char character) {
 
 	StringCbPrintfExA(Next, SizeLeft, &Next, &SizeLeft, 0, "m", Color);
 
-    if (bUseAnsiEmulation)
+    if (bUseAnsiEmulation && Color != pColor)
         WriteFile(hInput, formatted_output, (Next - formatted_output), &wr, NULL);
 
     WriteFile(hInput, &character, 1, &wr, NULL);
-
-    // Reset
-    if (bUseAnsiEmulation)
-        WriteFile(hInput, "\033[0m", 4, &wr, NULL);
 }
 
 void SendBuffer(HANDLE hInput, CHAR_INFO *buffer, DWORD bufferSize) {
@@ -366,24 +357,7 @@ void SendBuffer(HANDLE hInput, CHAR_INFO *buffer, DWORD bufferSize) {
 
 void CalculateAndSetCursor(HANDLE hInput, UINT aboveTopLine, UINT viewPortHeight, UINT x, UINT y) {
 
-    if (aboveTopLine > 0) {
-        if (y == viewPortHeight + aboveTopLine - 1) {
-            if (ViewPortY == lastViewPortY && lastViewPortY > 0) {
-                SendSetCursor(pipe_out, x + 1, y + 1);
-            }
-            else {
-                SendSetCursor(pipe_out, x + 1, y + 1);
-            }
-            consoleInfo = nextConsoleInfo;
-        }
-        else {
-            SendSetCursor(pipe_out, x + 1, y + 1);
-        }
-    }
-    else {
-        SendSetCursor(pipe_out, x + 1, y + 1);
-    }
-
+    SendSetCursor(pipe_out, x + 1, y + 1);
     currentLine = y;
 }
 
@@ -445,71 +419,6 @@ void SizeWindow(HANDLE hInput) {
     }
 
     bSuccess = GetConsoleScreenBufferInfoEx(child_out, &consoleInfo);
-}
-
-void RepaintWindow(HANDLE hInput) {
-
-    SMALL_RECT readRect;
-    DWORD bufferSize = 0;
-
-    CONSOLE_SCREEN_BUFFER_INFOEX  consoleInfo;
-    CHAR_INFO *pBuffer = NULL;
-
-    SendHideCursor(hInput);
-
-    ZeroMemory(&consoleInfo, sizeof(consoleInfo));
-    consoleInfo.cbSize = sizeof(consoleInfo);
-
-    if (GetConsoleScreenBufferInfoEx(child_out, &consoleInfo)) {
-
-        // Compute buffer size for the full window
-        bufferSize = (consoleInfo.srWindow.Bottom - consoleInfo.srWindow.Top + 1) * 
-            (consoleInfo.srWindow.Right - consoleInfo.srWindow.Left + 1);
-
-        // Create the screen scrape buffer
-        pBuffer = (PCHAR_INFO)malloc(sizeof(CHAR_INFO) * bufferSize);
-
-        if (!pBuffer) {
-           goto final_processing;
-        }
-
-        // Figure out the buffer size
-        COORD coordBufSize;
-        coordBufSize.Y = (consoleInfo.srWindow.Bottom - consoleInfo.srWindow.Top + 1);
-        coordBufSize.X = (consoleInfo.srWindow.Right - consoleInfo.srWindow.Left + 1);
-
-        if (coordBufSize.X < 0 || coordBufSize.X > MAX_CONSOLE_COLUMNS ||
-            coordBufSize.Y < 0 || coordBufSize.Y > MAX_CONSOLE_ROWS)
-        {
-            goto final_processing;
-        }
-
-        // The top left destination cell of the temporary buffer is row 0, col 0.
-        COORD coordBufCoord;
-        coordBufCoord.X = 0;
-        coordBufCoord.Y = 0;
-
-        // Copy the block from the screen buffer to the temporary buffer.
-        if (!ReadConsoleOutput(child_out, pBuffer, coordBufSize, coordBufCoord, &consoleInfo.srWindow))
-        {
-            goto final_processing;
-        }
-
-        // Set cursor location based on the reported location from the message.
-        CalculateAndSetCursor(pipe_out, 0, 0, 0, 0);
-
-        // Send the entire block.
-        SendBuffer(pipe_out, pBuffer, bufferSize);
-
-        free(pBuffer);
-        pBuffer = NULL;
-    }
-
-final_processing:
-    if (pBuffer)
-        free(pBuffer);
-
-    SendShowCursor(hInput);
 }
 
 // End of VT output routines
@@ -717,13 +626,6 @@ DWORD ProcessEvent(void *p) {
         else {
             ViewPortY += vn;
         }
-
-        //SendVerticalScroll(pipe_out, vd);
-
-        //SendHorizontalScroll(pipe_out, hd);
-
-        if(vd < 0)
-            SendCRLF(pipe_out);
 
         break;
     }
