@@ -222,7 +222,11 @@ int
 termio_initiate_read(struct w32_io* pio, BOOL bAsync) {
 	HANDLE read_thread;
 
-	debug3("TermRead initiate io:%p", pio);
+    if (bAsync) {
+        debug3("TermRead initiate async io:%p", pio);
+    }
+    else
+        debug3("TermRead initiate sync io:%p", pio);
 
 	if (pio->read_details.buf_size == 0) {
 		pio->read_details.buf = malloc(TERM_IO_BUF_SIZE);

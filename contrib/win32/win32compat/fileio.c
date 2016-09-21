@@ -334,7 +334,7 @@ fileio_read(struct w32_io* pio, void *dst, unsigned int max) {
         /* pick up APC if IO has completed */
         SleepEx(0, TRUE);
 
-        if (w32_io_is_blocking(pio) || bAsync) {
+        if (w32_io_is_blocking(pio)) {
             while (fileio_is_io_available(pio, TRUE) == FALSE) {
                 if (-1 == wait_for_any_event(NULL, 0, INFINITE))
                     return -1;
