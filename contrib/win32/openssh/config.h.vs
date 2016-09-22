@@ -1671,6 +1671,7 @@
 #define HAVE_KRB5_FREE_ERROR_MESSAGE 1
 #define HAVE_DECL_NFDBITS 0
 #define HAVE_DECL_HOWMANY 0
+#define HAVE_DES_CRYPT 1
 
 #define WIN32_ZLIB_NO 1
 #define USE_MSCNG 1
@@ -1722,7 +1723,13 @@ typedef long ssize_t;
 
 #define HAVE_MBLEN 1
 
-#define SSHDIR "."
+#ifndef WIN32
 #define _PATH_SFTP_SERVER "./sftp-server.exe"
 #define _PATH_SSH_PROGRAM "./ssh.exe"
 #define _PATH_LS			"dir"
+#else
+#define SSHDIR "."
+#define _PATH_SFTP_SERVER "sftp-server.exe"
+#define _PATH_SSH_PROGRAM "ssh.exe"
+#define _PATH_LS		  "dir"
+#endif
