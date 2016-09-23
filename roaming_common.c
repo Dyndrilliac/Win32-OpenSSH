@@ -180,7 +180,7 @@ roaming_read(int fd, void *buf, size_t count, int *cont)
 }
 
 size_t
-roaming_atomicio(int(*f)(int, void*, size_t), int fd, void *buf,
+roaming_atomicio(ssize_t(*f)(int, void*, size_t), int fd, void *buf,
     size_t count)
 {
 	size_t ret = atomicio(f, fd, buf, count);

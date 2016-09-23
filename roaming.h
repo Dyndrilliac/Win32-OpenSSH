@@ -34,7 +34,7 @@ void	roaming_reply(int, u_int32_t, void *);
 void	set_out_buffer_size(size_t);
 ssize_t	roaming_write(int, const void *, size_t, int *);
 ssize_t	roaming_read(int, void *, size_t, int *);
-size_t	roaming_atomicio(int(*)(int, void *, size_t), int, void *, size_t);
+size_t	roaming_atomicio(ssize_t (*)(int, void *, size_t), int, void *, size_t);
 u_int64_t	get_recv_bytes(void);
 u_int64_t	get_sent_bytes(void);
 void	roam_set_bytes(u_int64_t, u_int64_t);
