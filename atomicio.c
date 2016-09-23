@@ -49,12 +49,12 @@
  * ensure all of data on socket comes through. f==read || f==vwrite
  */
 size_t
-atomicio6(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n,
+atomicio6(int (*f) (int, void *, size_t), int fd, void *_s, size_t n,
     int (*cb)(void *, size_t), void *cb_arg)
 {
 	char *s = _s;
 	size_t pos = 0;
-	ssize_t res;
+	int res;
 	struct pollfd pfd;
 
 #ifndef BROKEN_READ_COMPARISON
@@ -89,7 +89,7 @@ atomicio6(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n,
 }
 
 size_t
-atomicio(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n)
+atomicio(int (*f) (int, void *, size_t), int fd, void *_s, size_t n)
 {
 	return atomicio6(f, fd, _s, n, NULL, NULL);
 }

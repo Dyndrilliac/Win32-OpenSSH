@@ -33,11 +33,11 @@
  * Ensure all of data on socket comes through. f==read || f==vwrite
  */
 size_t
-atomicio6(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n,
+atomicio6(int (*f) (int, void *, size_t), int fd, void *_s, size_t n,
     int (*cb)(void *, size_t), void *);
-size_t	atomicio(ssize_t (*)(int, void *, size_t), int, void *, size_t);
+size_t	atomicio(int (*)(int, void *, size_t), int, void *, size_t);
 
-#define vwrite (ssize_t (*)(int, void *, size_t))write
+#define vwrite (int (*)(int, void *, size_t))write
 
 /*
  * ensure all of data on socket comes through. f==readv || f==writev
