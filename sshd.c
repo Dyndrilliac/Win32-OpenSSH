@@ -1584,8 +1584,9 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 				memset(&si, 0, sizeof(STARTUPINFO));
 
 				char remotesoc[64];
-				snprintf(remotesoc, sizeof(remotesoc), "%p", sfd_to_handle(*newsock));
+				snprintf(remotesoc, sizeof(remotesoc), "%ul", sfd_to_handle(*newsock));
 				SetEnvironmentVariable("SSHD_REMSOC", remotesoc);
+                debug("Remote Handle %s", remotesoc);
 
 				si.cb = sizeof(STARTUPINFO);
 				si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
@@ -2516,7 +2517,9 @@ main(int ac, char **av)
       else
       {        
         DWORD_PTR remotesochandle ;
-        remotesochandle = atoi( getenv("SSHD_REMSOC") );
+        remotesochandle = atol( getenv("SSHD_REMSOC") );
+
+        debug("Remote Handle %p", remotesochandle);
 
         sock_in = sock_out = newsock = w32_allocate_fd_for_handle((HANDLE)remotesochandle, TRUE) ; 
 		

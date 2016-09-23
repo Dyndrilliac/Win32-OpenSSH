@@ -42,7 +42,7 @@ int w32_socketpair(int domain, int type, int protocol, int sv[2]);
 struct w32_stat;
 int w32_pipe(int *pfds);
 int w32_open(const char *pathname, int flags, ...);
-size_t w32_read(int fd, void *dst, size_t max);
+int w32_read(int fd, void *dst, size_t max);
 int w32_write(int fd, const void *buf, unsigned int max);
 int w32_fstat(int fd, struct w32_stat *buf);
 int w32_stat(const char *path, struct w32_stat *buf);

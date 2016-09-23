@@ -362,7 +362,7 @@ w32_open(const char *pathname, int flags, ...) {
 	return min_index;
 }
 
-size_t
+int
 w32_read(int fd, void *dst, size_t max) {
 	CHECK_FD(fd);
 
