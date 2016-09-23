@@ -709,6 +709,59 @@ do_local_cmd(arglist *a)
 	#endif
 }
 
+static int pipe_counter = 1;
+/* create overlapped supported pipe */
+BOOL CreateOverlappedPipe(PHANDLE hReadPipe, PHANDLE hWritePipe, LPSECURITY_ATTRIBUTES sa, DWORD size) {
+	HANDLE read_handle = INVALID_HANDLE_VALUE, write_handle = INVALID_HANDLE_VALUE;
+	char pipe_name[MAX_PATH];
+
+	/* create name for named pipe */
+	if (-1 == sprintf_s(pipe_name, MAX_PATH, "\\\\.\\Pipe\\W32SCPPipe.%08x.%08x",
+		GetCurrentProcessId(), pipe_counter++)) {
+		debug("pipe - ERROR sprintf_s %d", errno);
+		goto error;
+	}
+
+	read_handle = CreateNamedPipeA(pipe_name,
+		PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+		PIPE_TYPE_BYTE | PIPE_WAIT,
+		1,
+		4096,
+		4096,
+		0,
+		sa);
+	if (read_handle == INVALID_HANDLE_VALUE) {
+		debug("pipe - CreateNamedPipe() ERROR:%d", errno);
+		goto error;
+	}
+
+	/* connect to named pipe */
+	write_handle = CreateFileA(pipe_name,
+		GENERIC_WRITE,
+		0,
+		sa,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
+		NULL);
+	if (write_handle == INVALID_HANDLE_VALUE) {
+		debug("pipe - ERROR CreateFile() :%d", errno);
+		goto error;
+	}
+
+	*hReadPipe = read_handle;
+	*hWritePipe = write_handle;
+	return TRUE;
+
+error:
+	if (read_handle)
+		CloseHandle(read_handle);
+	if (write_handle)
+		CloseHandle(write_handle);
+
+	return FALSE;
+
+}
+
 /*
  * This function executes the given command as the specified user on the
  * given host.  This returns < 0 if execution fails, and >= 0 otherwise. This
@@ -815,7 +868,7 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
 		sa.lpSecurityDescriptor = NULL;
 		/* command processor output redirected to a nameless pipe */
 
-		rc = CreatePipe ( &hstdout[0], &hstdout[1], &sa, 0 ) ;
+		rc = CreateOverlappedPipe( &hstdout[0], &hstdout[1], &sa, 0 ) ;
 		/* read from this fd to get data from ssh.exe*/
 
 		// make scp's pipe read handle not inheritable by ssh
@@ -831,7 +884,7 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
 		*fdin = _open_osfhandle((intptr_t)hstdout[0],0);
 		_setmode (*fdin, O_BINARY); // set this file handle for binary I/O
 
-		rc = CreatePipe ( &hstdin[0], &hstdin[1], &sa, 0 ) ;
+		rc = CreateOverlappedPipe( &hstdin[0], &hstdin[1], &sa, 0 ) ;
 		/* write to this fd to get data into ssh.exe*/
 
 		// make scp's pipe write handle not inheritable by ssh
